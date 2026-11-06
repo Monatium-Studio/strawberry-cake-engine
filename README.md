@@ -75,6 +75,10 @@ setUiFonts({ sansFaces: ["'Pretendard Variable'"], faces: { ko: ['Pretendard Var
 
 `npm run examplecheck`가 헤드리스 Chrome으로 예제를 띄워 스크린샷을 찍고, 땅을 클릭해 캡슐이 도착하는지, 언어가 바뀌는지, 콘솔 오류가 없는지 봅니다.
 
+## AI 생성 자료
+
+이 저장소의 코드와 문서는 AI(Anthropic의 Claude)를 활용해 작성되었습니다. Monatium Studio가 방향을 정하고 결과를 확인했습니다.
+
 ## 라이선스
 
 MIT. © 2026 Monatium Studio. [LICENSE](LICENSE)

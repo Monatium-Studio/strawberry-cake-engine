@@ -75,6 +75,10 @@ setUiFonts({ sansFaces: ["'Pretendard Variable'"], faces: { ko: ['Pretendard Var
 
 `npm run examplecheck` opens the example in headless Chrome, takes screenshots, clicks the ground and checks that the capsule arrives, that the language switches, and that the console has no errors.
 
+## AI-generated material
+
+The code and documents in this repository were written with the help of AI (Anthropic's Claude). Monatium Studio set the direction and reviewed the results.
+
 ## License
 
 MIT. © 2026 Monatium Studio. See [LICENSE](LICENSE).

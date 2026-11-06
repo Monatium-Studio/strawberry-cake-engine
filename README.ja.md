@@ -75,6 +75,10 @@ setUiFonts({ sansFaces: ["'Pretendard Variable'"], faces: { ko: ['Pretendard Var
 
 `npm run examplecheck` はヘッドレス Chrome でサンプルを開いてスクリーンショットを撮り、地面をクリックしてカプセルが到着するか、言語が切り替わるか、コンソールエラーがないかを確かめます。
 
+## AI生成物
+
+このリポジトリのコードと文書はAI(AnthropicのClaude)を活用して作成されました。Monatium Studioが方針を決め、結果を確認しました。
+
 ## ライセンス
 
 MIT。© 2026 Monatium Studio。[LICENSE](LICENSE)
