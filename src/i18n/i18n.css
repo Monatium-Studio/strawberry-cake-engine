@@ -1,0 +1,23 @@
+/*
+ * 일본어 글꼴과 줄바꿈. 기본 글꼴 목록은 한글용이 앞에 있어 가나·한자가 한국식 자형으로 찍힌다.
+ * 언어가 ja일 때만 일본어 글꼴 목록(--ui-ja, fontStacks.ts의 JA_SANS)으로 바꾼다 (크기·굵기는 각 규칙 그대로).
+ * 이 파일은 UI 섀도 루트 안에 붙는다 (src/ui/uiRoot.ts): html은 보이지 않으므로 문서 언어를 그대로 적어 둔
+ * 화면 상자 div#game(lang, setUiLang)의 :lang()으로 고른다. 게임 UI가 자기 글꼴을 직접 적은 요소는
+ * `div:lang(ja) .my-class { font-family: var(--ui-ja); }`처럼 여기와 같은 꼴로 덮는다.
+ * 줄바꿈: 일본어는 띄어쓰기가 없으므로 keep-all을 쓰지 않는다. line-break: strict로 행두 금칙(、。」ー 등)을 지키고,
+ * word-break: auto-phrase로 문절 사이에서 끊는다.
+ */
+#game:lang(ja),
+div:lang(ja) .sce-menu,
+div:lang(ja) .sce-load,
+div:lang(ja) .lang-select {
+  font-family: var(--ui-ja);
+}
+
+#game:lang(ja) {
+  line-break: strict;
+  word-break: normal;
+  /* 문절 단위 줄바꿈 (Chrome 119+). 지원하지 않는 브라우저는 위의 normal을 쓴다 */
+  word-break: auto-phrase;
+  overflow-wrap: anywhere;
+}

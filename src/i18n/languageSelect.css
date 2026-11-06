@@ -1,0 +1,72 @@
+/* 첫 실행 언어 선택 (LanguageSelect.ts). 다른 UI 층보다 위 (z 40) */
+.lang-select {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 45%, #0d1422 0%, #05070b 72%);
+  color: #f4f1ea;
+  font-family: var(--ui-sans);
+  pointer-events: auto;
+  cursor: default;
+  opacity: 0;
+  transition: opacity 0.32s;
+}
+.lang-select.on { opacity: 1; }
+.lang-select.leaving { transition: opacity 0.4s; }
+.lang-select::before {
+  /* 주사선 */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(127, 240, 234, 0.035) 0 1px, transparent 1px 3px);
+  pointer-events: none;
+}
+.ls-panel {
+  position: relative;
+  width: min(440px, calc(100vw - 32px));
+  padding: 26px 0 22px 24px;
+  border-left: 3px solid #e3bf68;
+  text-shadow: 0 1px 3px #000;
+}
+.ls-head { margin-bottom: 22px; }
+.ls-k { display: block; font: 700 11px var(--ui-mono); letter-spacing: 0.32em; color: #7ff0ea; opacity: 0.85; margin-bottom: 10px; }
+.ls-prompts p { margin: 0; line-height: 1.5; }
+.ls-prompts p:first-child { font-size: 22px; font-weight: 800; letter-spacing: 0.06em; }
+.ls-prompts p:not(:first-child) { font-size: 14px; font-weight: 600; opacity: 0.62; letter-spacing: 0.04em; }
+.ls-prompts p[lang='ja'] { font-family: var(--ui-ja); }
+.ls-items { display: flex; flex-direction: column; gap: 8px; }
+.ls-items button {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  background: rgba(16, 22, 38, 0.66);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, transform 0.12s;
+}
+.ls-items button b { font-size: 20px; font-weight: 800; letter-spacing: 0.06em; }
+.ls-items button[lang='ja'] b { font-family: var(--ui-ja); }
+.ls-items button small { font: 700 10px var(--ui-mono); letter-spacing: 0.24em; opacity: 0.55; }
+.ls-items button kbd { font: 700 10px var(--ui-mono); padding: 2px 6px; border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 4px; opacity: 0.6; }
+.ls-items button:hover,
+.ls-items button:focus-visible,
+.ls-items button:focus {
+  background: rgba(227, 191, 104, 0.2);
+  border-color: #e3bf68;
+  transform: translateX(4px);
+  outline: none;
+}
+.ls-items button.picked { background: rgba(127, 240, 234, 0.18); border-color: #7ff0ea; }
+.ls-foot { display: flex; flex-direction: column; gap: 2px; margin-top: 16px; font-size: 11px; letter-spacing: 0.04em; opacity: 0.5; }
+@media (prefers-reduced-motion: reduce) {
+  .lang-select, .ls-items button { transition: none; }
+}
