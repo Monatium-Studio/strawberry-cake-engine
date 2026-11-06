@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>strawberry-cake-engine · basic</title>
+    <link rel="icon" href="data:," />
+    <style>
+      /* 페이지 자체만 문서에 둔다. UI 스타일은 닫힌 섀도 루트 안에 붙는다 (src/ui/uiRoot.ts) */
+      html, body { margin: 0; height: 100%; background: #17121a; color-scheme: dark; }
+      #game { position: relative; width: 100vw; height: 100vh; }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

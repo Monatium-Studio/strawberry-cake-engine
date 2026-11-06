@@ -20,7 +20,8 @@ import { adoptStyle, setUiLang } from '../ui/uiRoot';
 adoptStyle('i18n', i18nCss);
 
 export type Lang = 'ko' | 'en' | 'ja';
-export const LANGS: readonly Lang[] = ['ko', 'en', 'ja'];
+/** 쓰는 언어 (게임이 configureI18n({ languages })로 줄일 수 있다: 선택 화면·설정 메뉴가 이 목록을 보인다) */
+export const LANGS: Lang[] = ['ko', 'en', 'ja'];
 /** 언어 이름 (각 언어 자신의 표기) */
 export const LANG_NAMES: Record<Lang, string> = { ko: '한국어', en: 'English', ja: '日本語' };
 
@@ -71,8 +72,9 @@ applyDocLang(current);
 /**
  * 저장 열쇠와 기본 언어를 정한다 (게임 시작 전에 한 번). 저장된 값·?lang=이 없을 때만 기본 언어로 바꾼다
  */
-export function configureI18n(opts: { storageKey?: string; defaultLang?: Lang }): void {
+export function configureI18n(opts: { storageKey?: string; defaultLang?: Lang; languages?: Lang[] }): void {
   if (opts.storageKey) storageKey = opts.storageKey;
+  if (opts.languages?.length) LANGS.splice(0, LANGS.length, ...opts.languages.filter(isLang));
   if (opts.defaultLang && isLang(opts.defaultLang)) fallbackLang = opts.defaultLang;
   const l = readUrl() ?? readSaved() ?? fallbackLang;
   if (l !== current) {
