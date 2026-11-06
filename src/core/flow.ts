@@ -24,7 +24,7 @@ export interface ScreenContext {
 export type Screen = (ctx: ScreenContext) => Promise<(() => void | Promise<void>) | void>;
 
 /** 주소에 남길 플래그 (디버그·음소거·언어 같은 것). 화면을 바꿔도 이어 간다 */
-const KEEP_FLAGS = ['nodebug', 'mute', 'lang'];
+const KEEP_FLAGS = ['nodebug', 'nosound', 'lang'];
 
 export class ScreenFlow {
   private readonly screens = new Map<string, Screen>();
