@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>대사집 편집기</title>
+<style>
+  :root {
+    --bg: #12151c; --panel: #1a1f29; --line: #262d3a; --text: #e6e2d8; --dim: #8e96a6;
+    --gold: #e3bf68; --cyan: #7ff0ea; --red: #ff6b5e; --green: #7fdc8a; --edit: #2b2a1c;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 14px/1.5 -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; }
+  .app { display: grid; grid-template-columns: 220px 1fr; height: 100vh; }
+  aside { background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto; padding: 12px 0; }
+  aside h1 { font-size: 15px; margin: 0 16px 10px; color: var(--gold); }
+  aside button { display: flex; justify-content: space-between; width: 100%; border: 0; background: none; color: var(--text); padding: 6px 16px; font: inherit; text-align: left; cursor: pointer; }
+  aside button:hover { background: #222938; }
+  aside button.on { background: #2a3245; color: var(--cyan); }
+  aside button .n { color: var(--dim); font-size: 12px; }
+  aside button .dirty { color: var(--gold); }
+  main { display: flex; flex-direction: column; min-width: 0; }
+  .bar { display: flex; gap: 10px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+  .bar input[type=search] { flex: 1; min-width: 200px; background: #0f1218; border: 1px solid var(--line); color: var(--text); padding: 7px 10px; border-radius: 6px; font: inherit; }
+  .bar label { color: var(--dim); font-size: 13px; display: flex; gap: 5px; align-items: center; cursor: pointer; }
+  .bar select { background: #0f1218; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: inherit; }
+  .save { background: var(--gold); color: #1a1406; border: 0; border-radius: 6px; padding: 8px 16px; font: 600 14px inherit; cursor: pointer; }
+  .save:disabled { background: #3a3a33; color: #777; cursor: default; }
+  .reload { background: none; border: 1px solid var(--line); color: var(--dim); border-radius: 6px; padding: 7px 12px; font: inherit; cursor: pointer; }
+  .status { padding: 6px 16px; font-size: 13px; color: var(--dim); border-bottom: 1px solid var(--line); min-height: 31px; }
+  .status.ok { color: var(--green); } .status.err { color: var(--red); }
+  .list { overflow-y: auto; padding: 8px 16px 80px; }
+  .group { margin: 18px 0 6px; color: var(--gold); font: 600 12px ui-monospace, Menlo, monospace; letter-spacing: 0.06em; }
+  .row { display: grid; grid-template-columns: 110px 1fr; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .row.dirty { background: var(--edit); }
+  .who { padding-top: 6px; font-weight: 600; word-break: keep-all; }
+  .who small { display: block; color: var(--dim); font-weight: 400; font-size: 11px; font-family: ui-monospace, Menlo, monospace; }
+  .fields { display: grid; gap: 4px; min-width: 0; }
+  .f { display: grid; grid-template-columns: 26px 1fr; gap: 6px; align-items: start; }
+  .f b { color: var(--dim); font: 600 11px ui-monospace, Menlo, monospace; padding-top: 7px; }
+  textarea { width: 100%; resize: vertical; min-height: 32px; background: #0f1218; color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 5px 8px; font: inherit; line-height: 1.45; }
+  textarea:focus { outline: none; border-color: var(--cyan); }
+  textarea.changed { border-color: var(--gold); }
+  textarea[readonly] { color: var(--dim); }
+  .f.ko textarea { font-size: 15px; }
+  .extra { color: var(--dim); font-size: 11px; font-family: ui-monospace, Menlo, monospace; padding-left: 32px; }
+  .hide-tr .f.tr { display: none; }
+  .empty { color: var(--dim); padding: 40px 0; text-align: center; }
+  @media (max-width: 760px) { .app { grid-template-columns: 1fr; } aside { display: none; } .row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside><h1>대사집</h1><div id="files"></div></aside>
+  <main>
+    <div class="bar">
+      <input type="search" id="q" placeholder="찾기: 대사·영어·일본어·화자 (모든 파일)">
+      <select id="who"><option value="">모든 화자</option></select>
+      <label><input type="checkbox" id="tr" checked> 영어·일본어</label>
+      <button class="reload" id="reload" title="파일에서 다시 불러오기">새로 불러오기</button>
+      <button class="save" id="save" disabled>저장 (⌘S)</button>
+    </div>
+    <div class="status" id="status">불러오는 중…</div>
+    <div class="list" id="list"></div>
+  </main>
+</div>
+<script>
+const $ = (s) => document.querySelector(s);
+let data = { files: [] };
+let cur = null;
+const edits = new Map(); // `${file}#${idx}#${key}` → { file, idx, key, old, value }
+
+const status = (msg, cls = '') => { const el = $('#status'); el.textContent = msg; el.className = 'status ' + cls; };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const LABEL = { text: '한', en: 'EN', ja: 'JA' };
+
+async function load(keepFile) {
+  const r = await fetch('/api/lines');
+  data = await r.json();
+  if (data.error) return status('불러오기 실패: ' + data.error, 'err');
+  edits.clear();
+  const whos = new Map();
+  for (const f of data.files) for (const l of f.lines) whos.set(l.speaker, l.who);
+  $('#who').innerHTML = '<option value="">모든 화자</option>' + [...whos].sort((a, b) => a[1].localeCompare(b[1], 'ko')).map(([id, w]) => `<option value="${esc(id)}">${esc(w)} (${esc(id)})</option>`).join('');
+  cur = keepFile && data.files.some((f) => f.file === keepFile) ? keepFile : data.files[0]?.file;
+  const total = data.files.reduce((a, f) => a + f.lines.length, 0);
+  status(`대사 ${total}줄 · 파일 ${data.files.length}개. 고친 칸은 노랗게 표시되고, 저장하면 파일에 바로 씁니다. 게임은 개발 서버 탭을 새로고침하면 반영됩니다.`);
+  render();
+}
+
+function renderFiles() {
+  $('#files').innerHTML = data.files.map((f) => {
+    const dirty = [...edits.values()].filter((e) => e.file === f.file).length;
+    return `<button data-f="${esc(f.file)}" class="${f.file === cur && !$('#q').value ? 'on' : ''}"><span>${esc(f.name)}${dirty ? ' <span class="dirty">●</span>' : ''}</span><span class="n">${f.lines.length}</span></button>`;
+  }).join('');
+}
+
+function render() {
+  renderFiles();
+  const q = $('#q').value.trim().toLowerCase();
+  const who = $('#who').value;
+  const files = q || who ? data.files : data.files.filter((f) => f.file === cur);
+  let html = '';
+  let shown = 0;
+  for (const f of files) {
+    let group = null;
+    for (const l of f.lines) {
+      if (who && l.speaker !== who) continue;
+      if (q) {
+        const hay = [l.who, l.speaker, ...Object.values(l.fields).map((x) => x.value)].join('\n').toLowerCase();
+        if (!hay.includes(q)) continue;
+      }
+      const g = (q || who ? f.name + ' · ' : '') + (l.group || '');
+      if (g !== group) { html += `<div class="group">${esc(g)}</div>`; group = g; }
+      const dirty = ['text', 'en', 'ja'].some((k) => edits.has(`${f.file}#${l.idx}#${k}`));
+      html += `<div class="row${dirty ? ' dirty' : ''}" data-f="${esc(f.file)}" data-i="${l.idx}"><div class="who">${esc(l.who)}<small>${esc(l.speaker)}</small></div><div class="fields">`;
+      for (const k of ['text', 'en', 'ja']) {
+        const fd = l.fields[k];
+        if (!fd) continue;
+        const key = `${f.file}#${l.idx}#${k}`;
+        const val = edits.has(key) ? edits.get(key).value : fd.value;
+        html += `<div class="f ${k === 'text' ? 'ko' : 'tr'}"><b>${LABEL[k]}</b><textarea rows="1" data-k="${k}" ${fd.editable ? '' : 'readonly title="코드로 만든 문장이라 여기서 못 고칩니다"'} class="${edits.has(key) ? 'changed' : ''}">${esc(val)}</textarea></div>`;
+      }
+      const ex = Object.entries(l.extra).map(([k, v]) => `${k}: ${v}`).join(' · ');
+      if (ex) html += `<div class="extra">${esc(ex)}</div>`;
+      html += '</div></div>';
+      shown++;
+    }
+  }
+  $('#list').innerHTML = shown ? html : '<div class="empty">맞는 대사가 없습니다</div>';
+  $('#list').classList.toggle('hide-tr', !$('#tr').checked);
+  for (const t of $('#list').querySelectorAll('textarea')) fit(t);
+  $('#save').disabled = edits.size === 0;
+  $('#save').textContent = edits.size ? `저장 ${edits.size}칸 (⌘S)` : '저장 (⌘S)';
+}
+
+function fit(t) { t.style.height = 'auto'; t.style.height = t.scrollHeight + 2 + 'px'; }
+
+$('#list').addEventListener('input', (e) => {
+  const t = e.target;
+  if (t.tagName !== 'TEXTAREA') return;
+  fit(t);
+  const row = t.closest('.row');
+  const file = row.dataset.f, idx = +row.dataset.i, k = t.dataset.k;
+  const line = data.files.find((f) => f.file === file).lines[idx];
+  const orig = line.fields[k].value;
+  const key = `${file}#${idx}#${k}`;
+  const value = t.value.replace(/\r/g, '');
+  if (value === orig) edits.delete(key); else edits.set(key, { file, idx, key: k, old: orig, value });
+  t.classList.toggle('changed', value !== orig);
+  row.classList.toggle('dirty', ['text', 'en', 'ja'].some((kk) => edits.has(`${file}#${idx}#${kk}`)));
+  $('#save').disabled = edits.size === 0;
+  $('#save').textContent = edits.size ? `저장 ${edits.size}칸 (⌘S)` : '저장 (⌘S)';
+  renderFiles();
+});
+
+$('#files').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  cur = b.dataset.f;
+  $('#q').value = '';
+  $('#who').value = '';
+  render();
+  $('#list').scrollTop = 0;
+});
+$('#q').addEventListener('input', () => render());
+$('#who').addEventListener('change', () => render());
+$('#tr').addEventListener('change', () => render());
+$('#reload').addEventListener('click', () => {
+  if (edits.size && !confirm(`저장 안 한 ${edits.size}칸을 버리고 다시 불러올까요?`)) return;
+  load(cur);
+});
+
+async function save() {
+  if (!edits.size) return;
+  $('#save').disabled = true;
+  status('저장하는 중…');
+  const r = await fetch('/api/save', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ edits: [...edits.values()].map(({ file, idx, key, old, value }) => ({ file, idx, key, old, value })) }) });
+  const out = await r.json();
+  if (out.error) { status('저장 실패: ' + out.error, 'err'); $('#save').disabled = false; return; }
+  const ok = out.results.filter((x) => x.ok).length;
+  const bad = out.results.filter((x) => !x.ok);
+  const docOk = out.docs.filter((x) => x.ok).length;
+  const docMiss = out.docs.length - docOk;
+  await load(cur);
+  let msg = `저장 ${ok}칸.`;
+  if (docOk) msg += ` 대본(docs/script)도 ${docOk}곳 같이 고침.`;
+  if (docMiss) msg += ` 대본에서 못 찾은 문장 ${docMiss}개(대본은 따로 맞춰야 함).`;
+  if (bad.length) msg += ` 실패 ${bad.length}칸: ${bad[0].why}`;
+  status(msg, bad.length ? 'err' : 'ok');
+}
+$('#save').addEventListener('click', save);
+addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); } });
+addEventListener('beforeunload', (e) => { if (edits.size) { e.preventDefault(); e.returnValue = ''; } });
+
+load();
+</script>
+</body>
+</html>
