@@ -15,6 +15,8 @@ export interface LoadedModel {
 export async function loadModel(url: string, opts: { outlines?: boolean } = {}): Promise<LoadedModel> {
   const gltf = await gltfLoader.loadAsync(url);
   const root = gltf.scene;
+  // COL_ 노드는 충돌 전용이라 그리지 않는다 (외곽선도 없음). 레벨은 LevelLoader가, 소품 물리는 메시 자리를 그대로 읽는다
+  hideColliders(root);
   root.traverse((o) => {
     const mesh = o as THREE.Mesh;
     if (!mesh.isMesh) return;
@@ -27,6 +29,18 @@ export async function loadModel(url: string, opts: { outlines?: boolean } = {}):
   // 프로그램 갈래 나누기 (variants.ts). 레벨은 연출 코드가 머티리얼을 직접 만지는 곳이 많아 그대로 둔다
   if (!level) splitProgramVariants(root);
   return { root, gltf, animations: gltf.animations };
+}
+
+/** 이름이 COL_로 시작하는 노드(충돌 전용)를 숨기고 외곽선을 막는다. 숨긴 수를 돌려준다 */
+export function hideColliders(root: THREE.Object3D): number {
+  let n = 0;
+  root.traverse((o) => {
+    if (!/^COL_/.test(o.name)) return;
+    o.visible = false;
+    o.userData.noOutline = 1;
+    n++;
+  });
+  return n;
 }
 
 export interface ModelStats {
@@ -52,6 +66,8 @@ export function modelStats(root: THREE.Object3D, animations: THREE.AnimationClip
   root.updateMatrixWorld(true);
   root.traverse((o) => {
     if (o.userData.isOutline) return;
+    // 충돌 전용 메시(hideColliders)는 그리지 않으므로 세지 않는다
+    for (let p: THREE.Object3D | null = o; p && p !== root.parent; p = p.parent) if (/^COL_/.test(p.name)) return;
     if ((o as THREE.Bone).isBone) bones++;
     const mesh = o as THREE.Mesh;
     if (mesh.isMesh) {
