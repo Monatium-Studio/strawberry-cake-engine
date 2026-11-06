@@ -7,9 +7,9 @@ import { forwardOf, num, str, vec3, yawOf } from './props';
 
 /** 빈 오브젝트 마커 (SPAWN_, NPC_, WP_, MARK_, PROP_, FX_) */
 export interface Marker {
-  /** 노드 이름 전체 (예: NPC_cathy) */
+  /** 노드 이름 전체 (예: NPC_guide) */
   name: string;
-  /** 접두사 뒤 (예: cathy) */
+  /** 접두사 뒤 (예: guide) */
   id: string;
   object: THREE.Object3D;
   position: THREE.Vector3;

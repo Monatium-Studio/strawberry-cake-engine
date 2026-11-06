@@ -412,7 +412,7 @@ export async function assembleTileCache(
       const s = performance.now();
       tileCache.buildNavMeshTilesAt(x, y, navMesh);
       meshMs += performance.now() - s;
-      // 타일마다 예산을 본다 (한 줄을 한 번에 만들면 큰 레벨은 30 ms 넘게 막혀, 인트로 동안 미리 구울 때 화면이 끊겼다)
+      // 타일마다 예산을 본다 (한 줄을 한 번에 만들면 큰 레벨은 30 ms 넘게 막혀, 연출 동안 미리 구울 때 화면이 끊겼다)
       if (opts.yieldFn) await opts.yieldFn();
     }
     opts.onProgress?.((y + 1) / grid.tilesZ);

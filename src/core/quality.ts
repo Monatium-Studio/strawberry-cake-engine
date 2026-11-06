@@ -62,7 +62,7 @@ export class AutoQuality {
     }
   }
 
-  /** 지금 창을 버린다 (재지 않는 동안: 로딩·컷신·일시정지) */
+  /** 지금 창을 버린다 (재지 않는 동안: 로딩·연출·일시정지) */
   skip(): void {
     this.frames = 0;
     this.wall = 0;

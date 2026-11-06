@@ -184,7 +184,7 @@ async function save() {
   const docMiss = out.docs.length - docOk;
   await load(cur);
   let msg = `저장 ${ok}칸.`;
-  if (docOk) msg += ` 대본(docs/script)도 ${docOk}곳 같이 고침.`;
+  if (docOk) msg += ` 대본(--docs 폴더)도 ${docOk}곳 같이 고침.`;
   if (docMiss) msg += ` 대본에서 못 찾은 문장 ${docMiss}개(대본은 따로 맞춰야 함).`;
   if (bad.length) msg += ` 실패 ${bad.length}칸: ${bad[0].why}`;
   status(msg, bad.length ? 'err' : 'ok');

@@ -85,7 +85,7 @@ interface Bucket {
 const geoCache = new Map<string, THREE.BufferGeometry>();
 const matCache = new Map<string, THREE.Material>();
 
-/** 캐시를 비운다 (열쇠에 원본 uuid: 판이 끝나면 다시 쓰이지 않는다. art/bake.ts clearBakeCaches와 같다) */
+/** 캐시를 비운다 (열쇠에 원본 uuid: 판이 끝나면 다시 쓰이지 않는다. render/bake.ts clearBakeCaches와 같다) */
 export function clearRigidMergeCaches(): void {
   geoCache.clear();
   matCache.clear();

@@ -238,21 +238,21 @@ export class Physics {
   /**
    * 시야: from에서 to까지 보이는 형상·콜라이더에 막히지 않는가 (pass 면은 막지 않는다).
    * reaches(hit)가 true면 그 맞은 것이 목표다(예: 목표 캐릭터의 콜라이더). margin: 목표 앞 이만큼은 막혀도 보인다고 친다.
-   * cover를 주면 보일 때 그 사이 pass 덩어리 속을 지난 길이(m, passDepth)를 depth에 적는다. cover.near: 눈에서 이만큼 안은 세지 않는다
+   * occlusion을 주면 보일 때 그 사이 pass 덩어리 속을 지난 길이(m, passDepth)를 depth에 적는다. occlusion.near: 눈에서 이만큼 안은 세지 않는다
    */
   lineOfSight(
     from: THREE.Vector3,
     to: THREE.Vector3,
-    opts: Omit<VisualRayOptions, 'pass' | 'passed'> & { reaches?: (hit: VisualHit) => boolean; margin?: number; cover?: { depth: number; near?: number } } = {},
+    opts: Omit<VisualRayOptions, 'pass' | 'passed'> & { reaches?: (hit: VisualHit) => boolean; margin?: number; occlusion?: { depth: number; near?: number } } = {},
   ): boolean {
     const d = to.clone().sub(from);
     const len = d.length();
-    if (opts.cover) opts.cover.depth = 0;
+    if (opts.occlusion) opts.occlusion.depth = 0;
     if (len < 0.05) return true;
-    const passed: VisualHit[] | undefined = opts.cover ? [] : undefined;
+    const passed: VisualHit[] | undefined = opts.occlusion ? [] : undefined;
     const hit = this.visualRaycast(from, d, len, { ...opts, pass: 'pass', passed });
     const seen = !hit || hit.distance > len - (opts.margin ?? 0.3) || !!opts.reaches?.(hit);
-    if (seen && passed?.length && opts.cover) opts.cover.depth = passDepth(passed, hit ? Math.min(hit.distance, len) : len, opts.cover.near ?? 0);
+    if (seen && passed?.length && opts.occlusion) opts.occlusion.depth = passDepth(passed, hit ? Math.min(hit.distance, len) : len, opts.occlusion.near ?? 0);
     return seen;
   }
 }

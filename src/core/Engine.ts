@@ -121,7 +121,7 @@ export class Engine {
     if (minW > 0) container.style.minWidth = `${minW}px`;
     if (minH > 0) container.style.minHeight = `${minH}px`;
 
-    // 로그 깊이 버퍼(?logdepth=1)일 때 직접 짠 ShaderMaterial은 engine/logDepth.ts의 patchLogDepth로 같은 깊이를 쓴다
+    // 로그 깊이 버퍼(?logdepth=1)일 때 직접 짠 ShaderMaterial은 render/logDepth.ts의 patchLogDepth로 같은 깊이를 쓴다
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', logarithmicDepthBuffer: QUALITY.logDepth });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.autoClear = false;

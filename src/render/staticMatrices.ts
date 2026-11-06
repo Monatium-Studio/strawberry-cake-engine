@@ -42,7 +42,7 @@ const CHECK_BUDGET = 1024;
 function builtinDynamic(o: THREE.Object3D): boolean {
   return (
     pinned.has(o) ||
-    // 코드가 matrix를 직접 쓰는 노드 (art/bake.ts가 합친 메시는 행렬이 고정이라 얼린다)
+    // 코드가 matrix를 직접 쓰는 노드 (render/bake.ts가 합친 메시는 행렬이 고정이라 얼린다)
     (!o.matrixAutoUpdate && !o.userData.baked) ||
     !o.matrixWorldAutoUpdate ||
     !!o.userData.dynamic ||
@@ -351,7 +351,7 @@ function pathOf(o: THREE.Object3D, root: THREE.Object3D): string {
   return parts.reverse().join('/');
 }
 
-// 버린 레벨이 남지 않게 약한 참조로 (붙은 레벨만 active에 든다: GameLevel.detach가 뺀다)
+// 버린 레벨이 남지 않게 약한 참조로 (붙은 레벨만 active에 든다: Level.detach가 뺀다)
 const sets = new WeakMap<THREE.Object3D, StaticSet>();
 /** 얼린 노드 → 그 레벨의 StaticSet */
 const nodeSet = new WeakMap<THREE.Object3D, StaticSet>();

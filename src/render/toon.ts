@@ -35,7 +35,7 @@ const toonCache = new WeakMap<THREE.Material, THREE.Material>();
 
 /**
  * 겹친 면 깊이 다툼(z-fighting) 방지. 기본 면 바로 위에 붙인 얇은 장식(도로 선, 바닥 무늬, 표지, 유리, 얼굴 이목구비)은
- * 멀어지면 깊이 정밀도가 모자라 기본 면과 번갈아 보인다(2026-11-02 사용자 지적). 그런 메시는 깊이를 몇 단계 앞으로 당겨
+ * 멀어지면 깊이 정밀도가 모자라 기본 면과 번갈아 보인다(관찰된 문제). 그런 메시는 깊이를 몇 단계 앞으로 당겨
  * 늘 이기게 한다. polygonOffset은 깊이 버퍼 단위라 거리와 상관없이 듣는다.
  *   *_fine, *decal*, *stencil*, *_face → 강하게 / *_detail → 약하게
  */
@@ -152,7 +152,7 @@ function lineColorFor(mat: THREE.Material): THREE.Color {
   const hex = (mat.userData as { lineColor?: string }).lineColor;
   if (typeof hex === 'string') return new THREE.Color(hex);
   const base = (mat as THREE.MeshToonMaterial).color?.clone() ?? new THREE.Color(0.3, 0.3, 0.3);
-  // 바탕색을 어둡고 약간 붉은 쪽으로: 트릭컬풍 컬러 라인
+  // 바탕색을 어둡고 약간 붉은 쪽으로: 색이 있는 외곽선 (검은 선보다 부드럽다)
   const hsl = { h: 0, s: 0, l: 0 };
   base.getHSL(hsl);
   return new THREE.Color().setHSL(hsl.h, Math.min(1, hsl.s * 0.9 + 0.1), Math.max(0.06, hsl.l * 0.28));
@@ -170,7 +170,7 @@ export const outlineView = { uViewH: { value: 720 }, uMinPx: { value: 1.0 } };
  * 외곽선 모드별 굵기 규칙.
  *  - crisp(인물·소품): 1픽셀보다 가늘면 1픽셀로 늘리고, 0.12~0.4픽셀에서 바탕색으로 스민다
  *  - level(레벨 지형·건물): 늘리지 않고 1.3픽셀보다 가늘어지면 바탕색으로 스며 0.55픽셀에서 사라진다.
- *    먼 건물의 창문 격자에 1픽셀 선이 촘촘히 깔리면 움직일 때 반짝이며 자글거린다 (2026-11-02 사용자 지적)
+ *    먼 건물의 창문 격자에 1픽셀 선이 촘촘히 깔리면 움직일 때 반짝이며 자글거린다 (관찰된 문제)
  */
 const OUTLINE_MODES = {
   crisp: { uMinPx: outlineView.uMinPx, uFade: { value: new THREE.Vector2(0.12, 0.4) } },

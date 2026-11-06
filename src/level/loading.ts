@@ -75,7 +75,7 @@ export async function loadModelSliced(url: string, slicer: Slicer = loadSlicer):
     for (const k of kids) mesh.add(k);
     await slicer.tick();
   }
-  // 프로그램 갈래 나누기 (art/variants.ts, loadModel과 같다). 레벨은 그대로
+  // 프로그램 갈래 나누기 (render/variants.ts, loadModel과 같다). 레벨은 그대로
   if (!/\/levels\//.test(url)) splitProgramVariants(root);
   return { root, gltf, animations: gltf.animations };
 }

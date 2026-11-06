@@ -583,7 +583,7 @@ export class AudioEngine {
   private readonly _m = new Float32Array(16);
   /** 카메라 월드 행렬로 리스너 위치·방향을 맞춘다 (매 렌더 프레임) */
   updateListener(camera: THREE.Object3D): void {
-    // 잠긴(첫 클릭 전 사파리 등)·멈춘 컨텍스트에 AudioParam을 매 프레임 쓰면 메인 스레드를 크게 먹는다 (2026-11-05 프레임 조사: 50초 중 32%).
+    // 잠긴(첫 클릭 전 사파리 등)·멈춘 컨텍스트에 AudioParam을 매 프레임 쓰면 메인 스레드를 크게 먹는다 (프레임 조사: 50초 중 32%).
     // 들리지 않으니 건너뛰고, 풀린 뒤 첫 프레임에 맞춘다
     if (this.ctx.state !== 'running') return;
     const l = this.ctx.listener;
