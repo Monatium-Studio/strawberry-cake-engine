@@ -1,0 +1,55 @@
+/* 스크린샷 (Screenshot.ts): 찍은 뒤에만 뜬다. 다음 스크린샷에는 들어가지 않는다 (.shot-ui) */
+.shot-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+  background: #fff;
+  opacity: 0;
+  animation: shot-flash 0.32s ease-out forwards;
+}
+@keyframes shot-flash {
+  0% { opacity: 0.2; }
+  100% { opacity: 0; }
+}
+
+.shot-toast {
+  position: absolute;
+  top: 22px;
+  right: 24px;
+  z-index: 2147483001;
+  pointer-events: none;
+  padding: 8px 14px 9px 12px;
+  border-left: 2px solid #7ff0ea;
+  border-radius: 0 6px 6px 0;
+  background: rgba(10, 14, 22, 0.78);
+  color: #f4f1ea;
+  font: 700 13px var(--ui-sans);
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 2px #000;
+  opacity: 0;
+  animation: shot-toast 2.4s ease forwards;
+}
+.shot-toast small {
+  display: block;
+  margin-top: 2px;
+  font: 600 10px var(--ui-mono);
+  letter-spacing: 0.02em;
+  opacity: 0.6;
+}
+.shot-toast.fail { border-left-color: #ff7a6a; }
+@keyframes shot-toast {
+  0% { opacity: 0; transform: translateY(-4px); }
+  8% { opacity: 1; transform: none; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shot-flash { display: none; }
+  .shot-toast { animation-name: shot-toast-still; }
+  @keyframes shot-toast-still {
+    0%, 85% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+}

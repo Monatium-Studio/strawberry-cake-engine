@@ -1,0 +1,57 @@
+/* 일시정지·설정 메뉴 (SettingsMenu.ts). 색은 ui.css의 변수를 쓴다 */
+.sce-menu {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-left: 7%;
+  background: radial-gradient(ellipse at 30% 50%, rgba(18, 12, 20, 0.62), rgba(6, 4, 8, 0.88));
+  backdrop-filter: blur(6px) saturate(0.7);
+  -webkit-backdrop-filter: blur(6px) saturate(0.7);
+  pointer-events: auto;
+  cursor: default;
+  opacity: 0;
+  transition: opacity 0.18s;
+  font-family: var(--ui-sans);
+  color: var(--ui-text);
+}
+.sce-menu.on { opacity: 1; }
+.sce-menu[hidden] { display: none; }
+.sm-panel {
+  width: min(420px, 80vw);
+  padding: 22px 0 18px 22px;
+  border-left: 3px solid var(--ui-accent);
+  text-shadow: 0 1px 3px #000;
+}
+.sm-head { display: flex; flex-direction: column; gap: 4px; margin-bottom: 18px; }
+.sm-head span { font: 700 11px var(--ui-mono); letter-spacing: 0.24em; opacity: 0.75; }
+.sm-head b { font-size: 34px; font-weight: 800; letter-spacing: 0.16em; }
+.sm-items { display: flex; flex-direction: column; gap: 6px; }
+.sm-items button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 11px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  background: rgba(30, 22, 34, 0.6);
+  color: inherit;
+  font: 700 16px var(--ui-sans);
+  letter-spacing: 0.06em;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, transform 0.12s;
+}
+.sm-items button:hover, .sm-items button:focus-visible { background: rgba(241, 155, 176, 0.2); border-color: var(--ui-accent); transform: translateX(4px); outline: none; }
+.sm-items button.primary { border-color: rgba(241, 155, 176, 0.55); background: rgba(241, 155, 176, 0.12); }
+.sm-items kbd { font: 700 10px var(--ui-mono); padding: 2px 6px; border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 4px; opacity: 0.75; }
+.sm-foot { margin-top: 14px; font-size: 11px; letter-spacing: 0.08em; opacity: 0.55; }
+.sm-settings { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.sm-row { display: grid; grid-template-columns: 7.5em 1fr 3.2em; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; }
+.sm-row input[type='range'] { width: 100%; accent-color: var(--ui-accent); }
+.sm-row input[type='checkbox'] { justify-self: start; width: 18px; height: 18px; accent-color: var(--ui-accent); }
+.sm-row select { font: inherit; color: inherit; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 6px; padding: 3px 8px; }
+.sm-row select option { color: #111; }
+.sm-row em { font: 700 12px var(--ui-mono); font-style: normal; color: var(--ui-accent); text-align: right; }

@@ -1,0 +1,59 @@
+/* 로딩 화면 (LoadScreen.ts) */
+.sce-load {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  background: #07060a;
+  pointer-events: auto;
+  opacity: 0;
+  transition: opacity 0.35s;
+  font-family: var(--ui-sans);
+  color: var(--ui-text);
+}
+.sce-load.idle { display: none; }
+.sce-load.on { opacity: 1; }
+.sl-grain {
+  position: absolute;
+  inset: -50%;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 3px 3px;
+  animation: sl-grain 1.2s steps(6) infinite;
+  pointer-events: none;
+}
+@keyframes sl-grain {
+  0% { transform: translate(0, 0); }
+  50% { transform: translate(-1.5%, 1%); }
+  100% { transform: translate(1%, -1.5%); }
+}
+.sl-text {
+  position: absolute;
+  left: 50%;
+  bottom: 64px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  text-shadow: 0 1px 3px #000;
+}
+.sl-text b { font-size: 18px; font-weight: 800; letter-spacing: 0.12em; }
+.sl-text small { font-size: 13px; opacity: 0.65; max-width: 60ch; }
+.sl-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.sl-line b {
+  display: block;
+  height: 100%;
+  background: var(--ui-accent);
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sl-grain { animation: none; }
+}
