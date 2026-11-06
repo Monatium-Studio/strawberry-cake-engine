@@ -44,7 +44,7 @@ SKIN_SHADE = "#f6d3cc"
 BUST_DEPTH = 0.052        # bust=1일 때 가슴 앞 꼭짓점이 더 나오는 두께(m, e.k 곱함). CHARACTER_KIT.md 2장
 
 ARM_BONES_PREFIX = ("upperarm", "forearm", "hand", "thumb", "f1_", "f2_", "f3_")
-HEAD_BONES_PREFIX = ("neck", "head", "ear", "hair")
+HEAD_BONES_PREFIX = ("neck", "head", "ear", "hair", "cheek")
 
 
 # =========================================================================== math helpers
@@ -559,6 +559,8 @@ class Elf:
     line    라인색 (merge 시 모든 툰 머티리얼 공통)
     segs    전체 분할 배율 (기본 1.0, 다수 등장 단역 0.7~0.8)
     hand_q  손 분할 배율 (기본 1.0, 1인칭 팔 1.2, 3인칭 단역 0.6)
+    cheek_rig  볼 리그 (기본 True): head의 자식 본 cheek_L·cheek_R과 볼 둘레 부드러운 웨이트(머리 피부 + 얼굴 데칼).
+            런타임 CheekRig가 본을 옮기고 늘려 볼이 출렁이고·부풀고·눌리고·늘어난다. CHARACTER_KIT.md 8장
     eye_depth  socket_eye를 얼굴 표면에서 머리 안쪽으로 넣는 깊이(m, 기본 0.04). 높이·좌우는 두 눈 사이 중앙.
             SD 머리는 얼굴이 가슴보다 0.17m 앞에 있다. 얼굴 표면이면 -80°에서도 가슴 앞만 스치고, 너무 깊으면
             (0.1↑) 가슴 윗면이 화면을 덮는다. 0.04면 -60°에 가슴 장비 앞 모서리, -80°에 가슴 장비 전체가 보인다.
@@ -567,7 +569,7 @@ class Elf:
     def __init__(self, name="elf", *, height=1.20, head=0.45, head_w=1.06, head_d=0.92, cheek=0.10,
                  shoulders=1.0, hips=1.0, limb=1.0, arm=1.0, leg=1.0, chest=0.15, bust=0.0, apose=40.0,
                  ear_len=0.095, ear_angle=14.0, ear_sweep=12.0, ear_width=0.060, ear_inner=True,
-                 skin=SKIN, line=LINE, segs=1.0, hand_q=1.0, eye_depth=0.04):
+                 skin=SKIN, line=LINE, segs=1.0, hand_q=1.0, eye_depth=0.04, cheek_rig=True):
         self.name = name
         self.H = height
         self.hh = head
@@ -587,6 +589,9 @@ class Elf:
         self.q = segs  # 분할 배율 (여럿 등장하는 단역은 0.7~0.8)
         self.hq = hand_q  # 손 분할 배율 (1인칭 팔은 1.0 이상, 3인칭 단역은 0.6~0.8)
         self.eye_depth = eye_depth
+        self.cheek_rig = bool(cheek_rig)
+        self.cheeks = {}          # 볼 리그: side → {"c": 볼 중심(피부), "n": 바깥 법선, "tx": 가로 접선} (_build_cheek_rig)
+        self.face_decals = []     # 얼굴 데칼로 등록한 파츠 태그 (볼 웨이트를 받는다, face_decal())
         self.skin_mat = mat(f"{name}_skin", skin) if isinstance(skin, str) else skin
         self.skin_hex = skin if isinstance(skin, str) else srgb_hex(mat_srgb(skin))
         self.parts: list[Part] = []
@@ -907,6 +912,149 @@ class Elf:
         fy = hit[0].y if hit[0] else -self.hd / 2
         self.face_y = fy
         self._socket("socket_eye", "head", V((0, fy + self.eye_depth * k, ez)), None)
+        if self.cheek_rig:
+            self._build_cheek_rig()
+
+    # ------------------------------------------------------------------ cheeks (볼 리그)
+    # 볼 둘레 웨이트 모양 (머리 크기 hh/0.45 배): 가로 반경, 위·아래 반경, 깊이 반경 (m)
+    CHEEK_R = {"u": 0.100, "up": 0.052, "dn": 0.078, "h": 0.064}
+    CHEEK_DEPTH = 0.045       # 본 머리(늘이기 중심)를 볼 표면에서 머리 안쪽으로 넣는 깊이 (m, 머리 크기 배)
+
+    def _cheek_center(self, side):
+        """볼 중심 (기본 볼터치 자리 근처, 눈 아래 바깥)을 얼굴 표면에 투영한 점과 법선."""
+        hs = self.hh / 0.45
+        s = 1 if side == "L" else -1
+        x = s * (0.098 * (self.hw / 0.477) + 0.036 * hs)
+        z = self.eye_z() - 0.058 * hs
+        return self.face_project(x, z)
+
+    def _cheek_r2(self, p, side):
+        """볼 중심에서 타원체 거리의 제곱 (1 = 웨이트 경계)."""
+        ck = self.cheeks.get(side)
+        if ck is None:
+            return 1e9
+        hs = self.hh / 0.45
+        R = self.CHEEK_R
+        d = V(p) - ck["c"]
+        u = d.dot(ck["tx"]) / (R["u"] * hs)
+        v = d.z / ((R["up"] if d.z > 0 else R["dn"]) * hs)
+        h = d.dot(ck["n"]) / (R["h"] * hs)
+        return u * u + v * v + h * h
+
+    def cheek_weight(self, p, side):
+        """점 p(머리 피부 근처)의 볼 본 웨이트 0~1. 볼 중심에서 타원체 거리 r로 (1 - r²)² (경계에서 매끄럽게 0).
+        위쪽 반경이 짧아 눈 윗부분과 이마에는 닿지 않고, 깊이 반경으로 머리 옆·뒤 피부에는 닿지 않는다."""
+        r2 = self._cheek_r2(p, side)
+        return (1.0 - r2) ** 2 if r2 < 1.0 else 0.0
+
+    def _cheek_w(self, p):
+        """머리 피부 웨이트 사전 (head + cheek_L/R, 합 1)."""
+        wl = self.cheek_weight(p, "L")
+        wr = self.cheek_weight(p, "R")
+        t = wl + wr
+        if t > 1.0:
+            wl, wr = wl / t, wr / t
+            t = 1.0
+        w = {"head": 1.0 - t}
+        if wl > 1e-4:
+            w["cheek_L"] = wl
+        if wr > 1e-4:
+            w["cheek_R"] = wr
+        return w
+
+    def _build_cheek_rig(self):
+        """볼 본 둘 + 머리 피부 볼 웨이트. 볼 둘레 머리 피부 면만 3×3으로 나눠(평평하게: 표면 모양은 거의 그대로) 늘이고
+        부풀려도 매끈하다. 나눈 뒤 얼굴 투영용 BVH(head_bvh)를 새 피부로 다시 만든다: 얼굴 데칼·귀·머리카락이 실제로 그려지는
+        피부 위에 놓여, 나눈 면의 쌍선형 점이 데칼을 뚫고 나오지 않는다."""
+        hs = self.hh / 0.45
+        up = V((0, 0, 1))
+        for side in ("L", "R"):
+            c, n = self._cheek_center(side)
+            n = n.normalized()
+            tx = up.cross(n)
+            tx = tx.normalized() if tx.length > 1e-6 else V((1, 0, 0))
+            self.cheeks[side] = {"c": c, "n": n, "tx": tx}
+            # 본: 머리 안쪽(늘이기 중심) → 볼 표면. 로컬 +Y = 바깥 법선, +Z = 위
+            self.add_bone(f"cheek_{side}", c - n * (self.CHEEK_DEPTH * hs), c, "head", roll=(0, 0, 1))
+        ob = self.head_obj
+        bm = bmesh.new()
+        bm.from_mesh(ob.data)
+        # 볼 웨이트가 닿는 면과 그 바로 바깥 한 줄 (경계가 매끄럽게 이어지게)
+        near = [f for f in bm.faces if any(self._cheek_r2(v.co, sd) < 1.2 for sd in ("L", "R") for v in f.verts)]
+        edges = list({e for f in near for e in f.edges})
+        if edges:
+            bmesh.ops.subdivide_edges(bm, edges=edges, cuts=2, use_grid_fill=True, smooth=1.0)
+        for f in bm.faces:
+            f.smooth = True
+        bm.to_mesh(ob.data)
+        bm.transform(ob.matrix_world)
+        self.head_bvh = BVHTree.FromBMesh(bm)
+        bm.free()
+        ob.data.update()
+        ob.vertex_groups.clear()
+        groups = {}
+        for v in ob.data.vertices:
+            for b, x in self._cheek_w(v.co).items():
+                if x <= 1e-4:
+                    continue
+                if b not in groups:
+                    groups[b] = ob.vertex_groups.new(name=b)
+                groups[b].add([v.index], x, "REPLACE")
+        # 데칼 웨이트용: 분할한 피부 삼각형 BVH + 정점 웨이트 (find_nearest → 무게중심 보간)
+        me = ob.data
+        me.calc_loop_triangles()
+        mw = ob.matrix_world
+        verts = [mw @ v.co for v in me.vertices]
+        tris = [tuple(t.vertices) for t in me.loop_triangles]
+        self._cheek_skin = (BVHTree.FromPolygons(verts, tris), verts, tris, [self._cheek_w(p) for p in verts])
+
+    def cheek_decal_w(self, p, max_dist=0.012):
+        """얼굴 데칼 정점 p의 웨이트: 가장 가까운 머리 피부 삼각형 세 꼭짓점 웨이트를 무게중심 좌표로 섞는다.
+        피부와 같은 식으로 움직이므로 볼을 옮기면(늘리기) 데칼이 피부에 정확히 붙어 간다. 피부에서 max_dist(m, 머리 크기 배)
+        보다 멀면 head 100% (머리카락 가닥 등)."""
+        if not self.cheeks:
+            return {"head": 1.0}
+        bvh, verts, tris, ws = self._cheek_skin
+        loc, _n, idx, dist = bvh.find_nearest(V(p))
+        if loc is None or dist > max_dist * self.hh / 0.45:
+            return {"head": 1.0}
+        a, b, c = (verts[i] for i in tris[idx])
+        v0, v1, v2 = b - a, c - a, loc - a
+        d00, d01, d11 = v0.dot(v0), v0.dot(v1), v1.dot(v1)
+        d20, d21 = v2.dot(v0), v2.dot(v1)
+        den = d00 * d11 - d01 * d01
+        if abs(den) < 1e-18:
+            bw = (1.0, 0.0, 0.0)
+        else:
+            y = (d11 * d20 - d01 * d21) / den
+            z = (d00 * d21 - d01 * d20) / den
+            bw = (1.0 - y - z, y, z)
+        out = {}
+        for wv, i in zip(bw, tris[idx]):
+            for bn, x in ws[i].items():
+                out[bn] = out.get(bn, 0.0) + wv * x
+        return {bn: x for bn, x in out.items() if x > 1e-4}
+
+    def face_decal(self, tag_or_obj):
+        """얼굴 위 데칼 파츠(눈물 자국, 볼 빗금, 감은 눈 속눈썹 등 얼굴 표면에 붙인 것)를 등록한다. 볼 리그가 있으면
+        finalize 때 피부와 같은 볼 웨이트를 받아 볼을 늘리고 부풀려도 피부에서 떨어지지 않는다. face()의 얼굴은 자동."""
+        tag = tag_or_obj if isinstance(tag_or_obj, str) else next(
+            (p.tag for p in self.parts if p.obj is tag_or_obj), None)
+        if tag and tag not in self.face_decals:
+            self.face_decals.append(tag)
+        return tag
+
+    def _weight_decal_obj(self, ob):
+        """오브젝트 정점마다 cheek_decal_w로 정점 그룹을 다시 쓴다 (셰이프 키 Basis 위치 기준)."""
+        me = ob.data
+        mw = ob.matrix_world
+        ob.vertex_groups.clear()
+        groups = {}
+        for v in me.vertices:
+            for b, x in self.cheek_decal_w(mw @ v.co).items():
+                if b not in groups:
+                    groups[b] = ob.vertex_groups.new(name=b)
+                groups[b].add([v.index], x, "REPLACE")
 
     def _s(self, n, lo=6):
         """분할 수에 품질 배율 적용 (짝수)."""
@@ -1275,6 +1423,14 @@ class Elf:
             tot = sum(rows.values())
             print(f"[elf] {self.name} tris={tot}  " + "  ".join(f"{k}={v}" for k, v in
                                                             sorted(rows.items(), key=lambda kv: -kv[1])))
+        if self.cheeks:
+            for p in self.parts:
+                if p.tag in self.face_decals:
+                    cb.apply_modifiers(p.obj)
+                    _bake_transform(p.obj)
+                    self._weight_decal_obj(p.obj)
+            if self.face_obj is not None:
+                self._weight_decal_obj(self.face_obj)
         vc = vc_material(f"{self.name}_toon_vc", self.line) if merge else None
         result = {}
         keys_ = []
@@ -1320,7 +1476,13 @@ class Elf:
             f = self.face_obj
             f["noOutline"] = 1
             f["fpHide"] = "head"
-            cb.parent_to_bone(f, self.arm_obj, "head")
+            if self.cheeks:
+                # 볼 리그: 머리 피부와 같은 볼 웨이트로 스키닝 (셰이프 키 + Armature는 glTF 스킨 + 모프로 나간다)
+                mod = f.modifiers.new("Armature", "ARMATURE")
+                mod.object = self.arm_obj
+                f.parent = self.arm_obj
+            else:
+                cb.parent_to_bone(f, self.arm_obj, "head")
             result["face"] = f
         self.result = result
         self._finalized = True
@@ -1798,8 +1960,13 @@ class Face:
             # 볼터치
             bs = self.blush_size
             bx, bz = cx + side * 0.034 * sz, cz - 0.050 * sz
-            self._fill(buf, ellipse2(bx, bz, 0.031 * sz * bs, 0.0175 * sz * bs, 20), 0.0009, m["blush"],
-                       rings=(0.7, 0.4))
+            # 볼 리그가 있으면 볼터치를 더 촘촘히 나눈다: 볼이 늘고 부풀 때 굽은 피부를 긴 현(弦)이 파고들지 않게
+            if self.e.cheeks:
+                self._fill(buf, ellipse2(bx, bz, 0.031 * sz * bs, 0.0175 * sz * bs, 28), 0.0009, m["blush"],
+                           rings=(0.8, 0.6, 0.4, 0.2))
+            else:
+                self._fill(buf, ellipse2(bx, bz, 0.031 * sz * bs, 0.0175 * sz * bs, 20), 0.0009, m["blush"],
+                           rings=(0.7, 0.4))
             for j in range(self.blush_lines):
                 ox = (j - (self.blush_lines - 1) / 2) * 0.011 * sz * bs
                 self._stroke(buf, [(bx + ox + 0.003 * sz, bz + 0.006 * sz), (bx + ox - 0.003 * sz, bz - 0.006 * sz)],
