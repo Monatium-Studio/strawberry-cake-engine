@@ -546,6 +546,16 @@ class Elf:
     head_w  머리 폭 / head (기본 1.04: 볼이 빵빵해 폭이 높이보다 약간 넓다)
     head_d  머리 깊이 / head (기본 0.92)
     cheek   볼 부풂 0~0.2 (기본 0.08)
+    cheek_h, cheek_w  볼 혹 중심 높이·세로 폭 (단위구 z, 기본 -0.38, 0.36 = 눈 높이). 원작 떡 볼: -0.68, 0.27
+    cheek_kx, cheek_ky  볼 혹의 옆 기본 비중(기본 0.4)과 앞쪽 비중(기본 0.5). 떡 볼: 0.3, 0.9 (3/4에서 볼이 옆머리 밖으로)
+    thigh   허벅지 굵기 배율 (기본 1). 무릎 아래는 40%만 따라간다. 원작 SD 인물의 통통한 허벅지: 1.2~1.3
+    jaw, jaw_d  턱 가로·앞뒤 좁힘 (기본 0.16, 0.14 = U자 턱). 떡 볼: 0, 0.08
+    base    아래 반구 단면 초타원 지수 (기본 2 = 원). 3이면 납작하고 넓은 떡 바닥
+            기본값은 예전 모양 그대로다. 떡 모양 근거와 인물별 값: docs/art/cheeks-research.md 4.3절, CHARACTER_KIT.md 2장
+    face_flat  얼굴 앞면을 평평하게 하는 정도 배율 (기본 1, 0이면 둥근 앞면)
+    face_shade  얼굴 앞면 음영 법선 (0~1, 기본 0.6): 머리 피부와 얼굴 데칼의 법선을 해석 표면 법선에서 앞쪽으로 눕힌다
+            (애니 얼굴 법선 기법). 볼·턱 둥근 면을 따라 툰 경계(밝음/중간)가 얼굴을 가로지르는 띠가 덜 생긴다.
+            0이면 해석 표면 법선 그대로. CHARACTER_KIT.md 4장
     shoulders, hips  어깨/골반 폭 배율 (기본 1.0)
     limb    팔다리 굵기 배율 (기본 1.0)
     arm, leg  팔/다리 길이 배율 (기본 1.0)
@@ -569,13 +579,20 @@ class Elf:
     def __init__(self, name="elf", *, height=1.20, head=0.45, head_w=1.06, head_d=0.92, cheek=0.10,
                  shoulders=1.0, hips=1.0, limb=1.0, arm=1.0, leg=1.0, chest=0.15, bust=0.0, apose=40.0,
                  ear_len=0.095, ear_angle=14.0, ear_sweep=12.0, ear_width=0.060, ear_inner=True,
-                 skin=SKIN, line=LINE, segs=1.0, hand_q=1.0, eye_depth=0.04, cheek_rig=True):
+                 skin=SKIN, line=LINE, segs=1.0, hand_q=1.0, eye_depth=0.04, cheek_rig=True,
+                 cheek_h=-0.38, cheek_w=0.36, cheek_kx=0.4, cheek_ky=0.5, jaw=0.16, jaw_d=0.14, base=2.0,
+                 face_flat=1.0, face_shade=0.6, thigh=1.0):
         self.name = name
         self.H = height
         self.hh = head
         self.hw = head * head_w
         self.hd = head * head_d
         self.cheek = cheek
+        self.cheek_h, self.cheek_w, self.cheek_kx, self.cheek_ky = cheek_h, cheek_w, cheek_kx, cheek_ky
+        self.jaw, self.jaw_d, self.base = jaw, jaw_d, base
+        self.face_flat = face_flat
+        self.thigh = thigh
+        self.face_shade = face_shade
         self.sh = shoulders
         self.hp = hips
         self.lb = limb
@@ -766,6 +783,11 @@ class Elf:
 
     def leg_r(self, t):
         r = keys([(0.0, 0.076), (0.25, 0.071), (0.52, 0.057), (0.62, 0.057), (0.78, 0.053), (1.0, 0.043)], t)
+        if self.thigh != 1.0:
+            # 허벅지 굵기 배율: 허벅지 가운데에서 가장 세고 무릎 아래로 40%까지 줄어든다 (SD 인물의 통통한 허벅지).
+            # 고관절(t=0) 쪽은 1배로 둔다: 허벅지 윗면이 몸통·옷 밖으로 비어져 나오지 않게
+            full = lerp(1.0, self.thigh, smoothstep(0.02, 0.24, t))
+            r *= lerp(full, 1.0 + (self.thigh - 1.0) * 0.4, smoothstep(0.30, 0.70, t))
         return r * self.k * self.lb, r * self.k * self.lb * 0.96
 
     def limb_point(self, limb, t, angle, off=0.0):
@@ -850,21 +872,34 @@ class Elf:
 
     # ------------------------------------------------------------------ head
     def _head_fn(self, x, y, z):
-        """단위구 좌표 → 머리 표면. SD: 정수리 둥글고, 아래쪽 볼이 옆·앞으로 빵빵, 얼굴 앞면은 평평한 편."""
+        """단위구 좌표 → 머리 표면. SD: 정수리 둥글고, 아래쪽 볼이 옆·앞으로 빵빵, 얼굴 앞면은 평평한 편.
+        볼·턱 모양 인자(cheek_h, cheek_w, cheek_kx, cheek_ky, jaw, jaw_d, base)의 기본값은 예전 모양 그대로다.
+        떡 모양(원작 트릭컬: 눈 아래 혹 + 납작한 바닥)은 docs/art/cheeks-research.md 4.3절 v6 값을 인물별로 준다."""
         W, D, Hh = self.hw / 2, self.hd / 2, self.hh / 2
         ck = self.cheek
-        # 볼: 아래 앞쪽 옆을 부풀림
-        low = math.exp(-((z + 0.38) / 0.36) ** 2)
+        # 아래 반구 단면: 원(base=2) → 초타원(base>2)이면 아래가 납작하고 넓은 떡 바닥
+        if self.base > 2.0 and z < 0:
+            az_ = abs(z)
+            r2 = math.sqrt(max(0.0, 1.0 - z * z))
+            rn = max(0.0, 1.0 - az_ ** self.base) ** (1.0 / self.base)
+            b = smoothstep(0.0, -0.35, z)
+            if r2 > 1e-6:
+                f = lerp(1.0, rn / r2, b)
+                x, y = x * f, y * f
+        # 볼: 아래 앞쪽 옆을 부풀림 (중심 높이 cheek_h, 세로 폭 cheek_w, 옆 기본 비중 cheek_kx, 앞쪽 비중 cheek_ky)
+        low = math.exp(-((z - self.cheek_h) / self.cheek_w) ** 2)
         front = smoothstep(0.35, -0.75, y)
-        sx = 1 + ck * 1.3 * low * (0.4 + 0.6 * front)
-        sy = 1 + ck * 0.5 * low * front
-        # 턱: 아래로 갈수록 좁게
+        sx = 1 + ck * 1.3 * low * (self.cheek_kx + (1 - self.cheek_kx) * front)
+        sy = 1 + ck * self.cheek_ky * low * front
+        # 턱: 아래로 갈수록 좁게 (jaw 가로, jaw_d 앞뒤)
         jaw = smoothstep(-0.55, -1.0, z)
-        sx *= 1 - 0.16 * jaw
-        sy *= 1 - 0.14 * jaw
+        sx *= 1 - self.jaw * jaw
+        sy *= 1 - self.jaw_d * jaw
         # 얼굴 앞면을 평평하게
         if y < 0:
-            flat = 0.16 * smoothstep(0.75, -0.2, z) * (1 - 0.6 * abs(x))
+            # |x| 대신 매끈한 절댓값: 가운데에 V자 골(오목한 주름)이 생기면 외곽선 헐이 콧등·인중 위로 선처럼 비친다
+            ax = math.sqrt(x * x + 0.04) - 0.2
+            flat = 0.16 * self.face_flat * smoothstep(0.75, -0.2, z) * (1 - 0.6 * ax)
             sy *= 1 - flat
         # 뒤통수 약간 볼록
         if y > 0:
@@ -873,23 +908,157 @@ class Elf:
         zz = z * (1 - 0.06 * smoothstep(-0.85, -1.0, z))
         return V((x * W * sx, y * D * sy, zz * Hh)) + self.head_c
 
+    def _head_normal(self, u):
+        """해석 표면 _head_fn의 법선 (단위구 좌표 u에서 유한 차분). 메시 분할과 상관없이 매끈하게 이어진다."""
+        u = V(u).normalized()
+        a = V((0, 0, 1)) if abs(u.z) < 0.9 else V((1, 0, 0))
+        t1 = u.cross(a).normalized()
+        t2 = u.cross(t1)
+        h = 1e-3
+        f = lambda v: self._head_fn(*(v.normalized()))   # noqa: E731
+        d1 = f(u + t1 * h) - f(u - t1 * h)
+        d2 = f(u + t2 * h) - f(u - t2 * h)
+        n = d1.cross(d2)
+        if n.length < 1e-12:
+            return u
+        n.normalize()
+        return n if n.dot(f(u) - self.head_c) >= 0 else -n
+
+    def _shade_normal(self, u):
+        """음영 법선: 해석 표면 법선 + 얼굴 앞면에서 앞쪽으로 눕히기(face_shade). 얼굴 앞 아래쪽(볼·턱)일수록 세게."""
+        n = self._head_normal(u)
+        fs = self.face_shade
+        if fs <= 0:
+            return n
+        u = V(u).normalized()
+        w = fs * smoothstep(-0.05, -0.65, u.y) * smoothstep(0.75, 0.15, u.z)
+        if w <= 0:
+            return n
+        t = V((n.x * 0.55, n.y, n.z * 0.35 if n.z < 0 else n.z * 0.8))
+        if t.y > -0.2:
+            t.y = -0.2
+        return n.lerp(t.normalized(), w).normalized()
+
+    def _head_normals(self, ob, uvw):
+        """머리 피부 정점 법선을 해석 표면의 음영 법선으로 둔다 (custom split normals → glTF NORMAL).
+        볼 리그가 나눈 면과 나누지 않은 면의 경계, 극점 둘레의 부채꼴에서도 법선이 매끈해 툰 경계가 얼룩지지 않는다.
+        얼굴 데칼이 같은 법선을 받도록 피부 삼각형 BVH와 정점별 단위구 좌표를 남긴다 (skin_normal_at)."""
+        me = ob.data
+        ns = [tuple(self._shade_normal(u)) for u in uvw]
+        for p in me.polygons:
+            p.use_smooth = True
+        me.normals_split_custom_set_from_vertices(ns)
+        me.update()
+        me.calc_loop_triangles()
+        mw = ob.matrix_world
+        verts = [mw @ v.co for v in me.vertices]
+        tris = [tuple(t.vertices) for t in me.loop_triangles]
+        self._skin_tri = (BVHTree.FromPolygons(verts, tris), verts, tris, [V(u) for u in uvw])
+
+    @staticmethod
+    def _bary(loc, a, b, c):
+        v0, v1, v2 = b - a, c - a, loc - a
+        d00, d01, d11 = v0.dot(v0), v0.dot(v1), v1.dot(v1)
+        d20, d21 = v2.dot(v0), v2.dot(v1)
+        den = d00 * d11 - d01 * d01
+        if abs(den) < 1e-18:
+            return (1.0, 0.0, 0.0)
+        y = (d11 * d20 - d01 * d21) / den
+        z = (d00 * d21 - d01 * d20) / den
+        return (1.0 - y - z, y, z)
+
+    def skin_normal_at(self, p, max_dist=0.012):
+        """점 p(얼굴 데칼 정점) 아래 머리 피부의 음영 법선. 피부에서 max_dist(m, 머리 크기 배)보다 멀면 None."""
+        st = getattr(self, "_skin_tri", None)
+        if st is None:
+            return None
+        bvh, verts, tris, uvw = st
+        loc, _n, idx, dist = bvh.find_nearest(V(p))
+        if loc is None or dist > max_dist * self.hh / 0.45:
+            return None
+        bw = self._bary(loc, *(verts[i] for i in tris[idx]))
+        u = sum((uvw[i] * x for i, x in zip(tris[idx], bw)), V((0, 0, 0)))
+        return self._shade_normal(u)
+
+    def _decal_normals(self, ob):
+        """얼굴 데칼 정점 법선을 아래 피부의 음영 법선으로 (데칼 위 툰 경계가 피부 경계와 이어진다: 볼터치 끝의 계단 방지)."""
+        me = ob.data
+        mw = ob.matrix_world
+        rot = mw.to_3x3().inverted()
+        ns = []
+        hit = 0
+        for v in me.vertices:
+            n = self.skin_normal_at(mw @ v.co)
+            if n is None:
+                ns.append(tuple(v.normal))
+            else:
+                ns.append(tuple((rot @ n).normalized()))
+                hit += 1
+        if not hit:
+            return
+        for p in me.polygons:
+            p.use_smooth = True
+        me.normals_split_custom_set_from_vertices(ns)
+        me.update()
+
+    @staticmethod
+    def _graded(lo, hi, n, zones, dens=2.6):
+        """lo~hi(도)를 n칸 기본 간격으로 나누되 zones [(중심, 반폭)] 안은 dens배 촘촘하게. 밀도가 매끈하게 바뀌어
+        간격이 갑자기 달라지지 않는다. 양 끝 포함 점 목록."""
+        def d(t):
+            b = 0.0
+            for c, hw in zones:
+                b = max(b, smoothstep(hw, hw * 0.55, abs(t - c)))
+            return 1.0 + (dens - 1.0) * b
+        N = 720
+        ts = [lo + (hi - lo) * i / N for i in range(N + 1)]
+        cum = [0.0]
+        for a_, b_ in zip(ts, ts[1:]):
+            cum.append(cum[-1] + 0.5 * (d(a_) + d(b_)) * (b_ - a_))
+        cnt = max(2, int(round(n * cum[-1] / (hi - lo))))
+        out, j = [], 0
+        for i in range(cnt + 1):
+            target = cum[-1] * i / cnt
+            while j < N and cum[j + 1] < target:
+                j += 1
+            seg = cum[j + 1] - cum[j] if j < N else 1.0
+            a = (target - cum[j]) / seg if seg > 1e-12 else 0.0
+            out.append(lerp(ts[j], ts[min(j + 1, N)], clamp(a)))
+        return out
+
     def _head(self):
         k = self.k
         segs = int(34 * self.q) // 2 * 2
         rings = int(22 * self.q)
+        if self.cheek_rig:
+            # 볼 리그: 볼 둘레만 촘촘한 격자 (나중에 면을 나누면 경계에 n각형·T자 이음이 생겨 오목한 주름과 법선 어긋남이
+            # 생긴다 → 각도마다 얼굴에 선이 비쳤다). 위도·경도 간격을 매끈하게 좁혀 쿼드만으로 만든다
+            half = self._graded(0.0, 180.0, segs // 2, [(38.0, 34.0)])
+            az_list = half[:-1] + [360.0 - a for a in reversed(half[1:])]
+            el_c = math.degrees(math.asin(clamp(self.cheek_h + 0.14, -0.95, 0.95)))   # 볼 중심 높이 둘레 (기본 ≈ -14°)
+            el_list = self._graded(-90.0, 90.0, rings, [(el_c - 10.0, 34.0)])[::-1][1:-1]
+        else:
+            az_list = [360.0 * j / segs for j in range(segs)]
+            el_list = [90.0 - 180.0 * i / rings for i in range(1, rings)]
+        segs = len(az_list)
+        rings = len(el_list) + 1
         buf = Buf()
         verts = [[None] * segs for _ in range(rings - 1)]
         w = {"head": 1.0}
+        uvw = []   # 정점마다 단위구 좌표 (음영 법선·데칼 법선을 해석 표면에서 구한다)
         for i in range(1, rings):
-            el = math.pi / 2 - math.pi * i / rings
+            el = math.radians(el_list[i - 1])
             for j in range(segs):
-                az = 2 * math.pi * j / segs
+                az = math.radians(az_list[j])
                 x = math.cos(el) * math.sin(az)
                 y = -math.cos(el) * math.cos(az)
                 z = math.sin(el)
                 verts[i - 1][j] = buf.vert(self._head_fn(x, y, z), w)
+                uvw.append((x, y, z))
         top = buf.vert(self._head_fn(0, 0, 1), w)
         bot = buf.vert(self._head_fn(0, 0, -1), w)
+        uvw += [(0.0, 0.0, 1.0), (0.0, 0.0, -1.0)]
+        self._head_uvw = uvw
         m = self.skin_mat
         for j in range(segs):
             j2 = (j + 1) % segs
@@ -902,6 +1071,8 @@ class Elf:
         ob = buf.obj(f"{self.name}_head_skin")
         self.head_obj = ob
         self.add(ob, group="head", tag="head")
+        if not self.cheek_rig:
+            self._head_normals(ob, uvw)
         # BVH (얼굴 투영, 머리카락·모자 표면 계산용)
         bm = bmesh.new()
         bm.from_mesh(ob.data)
@@ -927,7 +1098,7 @@ class Elf:
         hs = self.hh / 0.45
         s = 1 if side == "L" else -1
         x = s * (0.098 * (self.hw / 0.477) + 0.036 * hs)
-        z = self.eye_z() - 0.058 * hs
+        z = self.eye_z() - (0.058 + 0.09 * (-0.38 - self.cheek_h)) * hs   # 볼 혹 높이를 따라 내려간다 (떡 볼 ≈ 0.085)
         return self.face_project(x, z)
 
     def _cheek_r2(self, p, side):
@@ -979,16 +1150,14 @@ class Elf:
             # 본: 머리 안쪽(늘이기 중심) → 볼 표면. 로컬 +Y = 바깥 법선, +Z = 위
             self.add_bone(f"cheek_{side}", c - n * (self.CHEEK_DEPTH * hs), c, "head", roll=(0, 0, 1))
         ob = self.head_obj
+        # 볼 둘레 면은 _head가 이미 촘촘한 쿼드 격자로 만들었다 (예전: 여기서 smooth=1.0으로 면을 나눠 새 점이 표면 밖으로
+        # 부풀었다 → 나눈 영역 경계의 오목한 고리·n각형 주름에 외곽선 헐이 비치고(각도마다 보이는 선), 법선이 어긋나 툰
+        # 경계가 얼룩졌고, 볼터치 빗금이 피부에 묻혔다)
         bm = bmesh.new()
         bm.from_mesh(ob.data)
-        # 볼 웨이트가 닿는 면과 그 바로 바깥 한 줄 (경계가 매끄럽게 이어지게)
-        near = [f for f in bm.faces if any(self._cheek_r2(v.co, sd) < 0.6 for sd in ("L", "R") for v in f.verts)]
-        edges = list({e for f in near for e in f.edges})
-        if edges:
-            bmesh.ops.subdivide_edges(bm, edges=edges, cuts=2, use_grid_fill=True, smooth=1.0)
-        for f in bm.faces:
-            f.smooth = True
         bm.to_mesh(ob.data)
+        uvw = self._head_uvw
+        self._head_normals(ob, uvw)
         bm.transform(ob.matrix_world)
         self.head_bvh = BVHTree.FromBMesh(bm)
         bm.free()
@@ -1456,12 +1625,14 @@ class Elf:
             tot = sum(rows.values())
             print(f"[elf] {self.name} tris={tot}  " + "  ".join(f"{k}={v}" for k, v in
                                                             sorted(rows.items(), key=lambda kv: -kv[1])))
-        if self.cheeks:
-            for p in self.parts:
-                if p.tag in self.face_decals:
-                    cb.apply_modifiers(p.obj)
-                    _bake_transform(p.obj)
+        for p in self.parts:
+            if p.tag in self.face_decals:
+                cb.apply_modifiers(p.obj)
+                _bake_transform(p.obj)
+                self._decal_normals(p.obj)
+                if self.cheeks:
                     self._weight_decal_obj(p.obj)
+        if self.cheeks:
             if self.face_obj is not None:
                 self._weight_decal_obj(self.face_obj)
         if only is None:
@@ -1675,6 +1846,12 @@ FACE_NEUTRAL = {
     "mouth": {"w": 0.022, "curve": 0.0030, "open": 0.0, "top_arch": 0.0, "wave": 0.0, "dz": 0.0},
 }
 
+# 감은 눈 속눈썹 띠 기본값 (Face(closed_lash=True) 또는 사전으로 덮어쓰기). 길이·선 굵기는 눈 크기(sz) 배
+#   n 톱니 수, len 가장 긴 톱니 길이, span 눈 폭 안의 범위(-1 안쪽 ~ +1 바깥), base 홈 깊이(len 비), grow 안쪽 톱니가
+#   짧아지는 정도, skew 끝이 바깥으로 쓸리는 정도, fill/line 띠·가장자리 색(None: 속눈썹색과 피부색을 섞은 연한 색 / 속눈썹색)
+CLOSED_LASH = {"n": 3, "len": 0.020, "span": (-0.80, 0.98), "base": 0.30, "grow": 0.35, "skew": 0.30,
+               "line_w": 0.0020, "fill": None, "line": None}
+
 FACE_EXPR = {
     "blink": {"eye": {"close": 1.0}},
     "serious": {"eye": {"top": 0.018, "ktop": 3.6, "tilt_in": -0.012, "bot": 0.050, "cin": 0.006},
@@ -1767,7 +1944,8 @@ class Face:
     def __init__(self, e: "Elf", *, eye_color="#5a7fb5", eye_size=1.0, eye_spacing=1.0, eye_height=0.0,
                  lash="#3a2027", brow=None, brow_th=1.0, mouth_color="#9a3b45", tongue="#f2898c",
                  blush="#f9aca8", blush_size=1.0, blush_lines=0, sclera="#fffaf7", iris_dark=None,
-                 iris_light=None, pupil=None, highlight="#ffffff", lower_lash=True, expr=None, base=None):
+                 iris_light=None, pupil=None, highlight="#ffffff", lower_lash=True, expr=None, base=None,
+                 closed_lash=None, blush_soft=0.0, blush_line_color=None, blush_dx=0.034, blush_dz=-0.050):
         self.e = e
         k = e.k
         self.sz = 1.12 * eye_size * (e.hh / 0.45)
@@ -1779,6 +1957,18 @@ class Face:
         self.blush_size = blush_size
         self.blush_lines = blush_lines
         self.lower_lash = lower_lash
+        # 감은 눈 속눈썹 띠 (opt-in): 감은 눈꺼풀 선 아래로 처진 톱니 띠. 눈을 감는 정도(close)에 비례해 자라고,
+        # 뜬 눈에서는 선 위로 접혀 보이지 않는다 (모든 표정·blink 교정 키와 같이 움직인다). CHARACTER_KIT.md 6장
+        if closed_lash:
+            cl = dict(CLOSED_LASH)
+            if isinstance(closed_lash, dict):
+                cl.update(closed_lash)
+            self.closed_lash = cl
+        else:
+            self.closed_lash = None
+        self.blush_soft = clamp(float(blush_soft or 0.0))
+        self.blush_dx, self.blush_dz = blush_dx, blush_dz
+        self._blush_t = {}
         n = e.name
         self.m = {
             "sclera": mat(f"{n}_f_sclera", sclera),
@@ -1794,8 +1984,12 @@ class Face:
             "mline": mat(f"{n}_f_mline", mix_hex(lash, mouth_color, 0.25)),
             "tongue": mat(f"{n}_f_tongue", tongue),
             "blush": mat(f"{n}_f_blush", blush),
-            "blush_l": mat(f"{n}_f_blushl", shade(blush, -0.18)),
+            "blush_l": mat(f"{n}_f_blushl", blush_line_color or shade(blush, -0.18)),
         }
+        if self.closed_lash:
+            self.m["cl_fill"] = mat(f"{n}_f_clfill", self.closed_lash["fill"] or mix_hex(lash, e.skin_hex, 0.72))
+            self.m["cl_line"] = mat(f"{n}_f_clline", self.closed_lash["line"] or lash)
+        self.blush_hex = blush
         self.base = _merge_expr(FACE_NEUTRAL, base or {})
         self.exprs = dict(FACE_EXPR)
         if expr:
@@ -1929,6 +2123,53 @@ class Face:
         for i in range(n - 1):
             buf.face((R[i], R[i + 1], L[i + 1], L[i]), m)
 
+    def _closed_lash(self, buf, side, topline, P):
+        """감은 눈 속눈썹 띠: 눈꺼풀 선(topline) 아래로 처진 톱니 n개의 연한 띠 + 톱니 가장자리의 가는 선.
+        깊이·선 굵기가 close에 비례한다(close=0이면 선 위로 접혀 면적 0)."""
+        cl = self.closed_lash
+        c = clamp(P["eye"]["close"])
+        sz = self.sz
+        w = P["eye"]["w"] * sz / 2
+        cx = side * self.ex
+        # topline은 안쪽(-1) → 바깥(+1)으로 고르게 놓인 점: s로 보간
+        xs = [(p[0] - cx) * side / w for p in topline]
+
+        def top_at(s):
+            for (x0, p0), (x1, p1) in zip(zip(xs, topline), zip(xs[1:], topline[1:])):
+                if x0 <= s <= x1:
+                    a = (s - x0) / (x1 - x0) if x1 > x0 else 0.0
+                    return (lerp(p0[0], p1[0], a), lerp(p0[1], p1[1], a))
+            return topline[0] if s < xs[0] else topline[-1]
+
+        n = max(1, int(cl["n"]))
+        s0, s1 = cl["span"]
+        L = cl["len"] * sz * c
+        base = cl["base"]
+        grow = cl["grow"]
+        # 톱니 가장자리 점: 시작 → (홈, 끝)×n → 끝. 끝은 바깥쪽으로 skew만큼 쓸린다
+        zig = [(s0, 0.10)]
+        for j in range(n):
+            u0 = s0 + (s1 - s0) * j / n
+            u1 = s0 + (s1 - s0) * (j + 1) / n
+            g = lerp(1.0 - grow, 1.0, (j + 1) / n)
+            if j > 0:
+                zig.append((u0, base))
+            zig.append((lerp(u0, u1, 0.55), g))
+        zig.append((s1, 0.18))
+        tops, bots = [], []
+        for s, d in zig:
+            tx, tz = top_at(s)
+            dd = d * L
+            tops.append((tx, tz - 0.0008 * sz * c))
+            bots.append((tx + side * cl["skew"] * dd, tz - dd))
+        ids_t = [buf.vert(self.e.face_project(x, z, 0.0030)[0]) for x, z in tops]
+        ids_b = [buf.vert(self.e.face_project(x, z, 0.0030)[0]) for x, z in bots]
+        for i in range(len(zig) - 1):
+            a, b_, cc, d = ids_t[i], ids_t[i + 1], ids_b[i + 1], ids_b[i]
+            buf.face((a, b_, cc, d) if side < 0 else (d, cc, b_, a), self.m["cl_fill"])
+        lw = cl["line_w"] * sz * c
+        self._stroke(buf, bots, [lw] * len(bots), 0.0033, self.m["cl_line"])
+
     def _build(self, P):
         buf = Buf()
         m = self.m
@@ -1971,6 +2212,8 @@ class Face:
             widths = [keys([(0.0, 0.0032), (0.15, 0.0062), (0.55, 0.0078), (0.88, 0.0090), (1.0, 0.0046)], i / (nL - 1)) * sz
                       for i in range(nL)]
             self._stroke(buf, line, widths, 0.0036, m["lash"], shift=0.32)
+            if self.closed_lash:
+                self._closed_lash(buf, side, topline, P)
             # 아랫 속눈썹 (바깥쪽 짧은 선)
             if self.lower_lash:
                 bl = self._botline
@@ -1994,18 +2237,33 @@ class Face:
             self._stroke(buf, pts, wds, 0.0016, m["brow"])
             # 볼터치
             bs = self.blush_size
-            bx, bz = cx + side * 0.034 * sz, cz - 0.050 * sz
+            bx, bz = cx + side * self.blush_dx * sz, cz + self.blush_dz * sz
             # 볼 리그가 있으면 볼터치를 더 촘촘히 나눈다: 볼이 늘고 부풀 때 굽은 피부를 긴 현(弦)이 파고들지 않게
+            v_blush = len(buf.v)
             if self.e.cheeks:
-                self._fill(buf, ellipse2(bx, bz, 0.031 * sz * bs, 0.0175 * sz * bs, 28), 0.0009, m["blush"],
-                           rings=(0.8, 0.6, 0.4, 0.2))
+                # 고리 6겹: 둥근 볼 혹에서 긴 현이 피부 아래로 파고들어 흰 구멍이 나지 않게
+                rings = (0.85, 0.7, 0.55, 0.4, 0.25, 0.12)
+                self._fill(buf, ellipse2(bx, bz, 0.031 * sz * bs, 0.0175 * sz * bs, 28), 0.0010, m["blush"],
+                           rings=rings)
             else:
+                rings = (0.7, 0.4)
                 self._fill(buf, ellipse2(bx, bz, 0.031 * sz * bs, 0.0175 * sz * bs, 20), 0.0009, m["blush"],
-                           rings=(0.7, 0.4))
+                           rings=rings)
+            if self.blush_soft > 0:
+                # 볼터치 가장자리 그라데이션: 바깥 고리부터 피부색으로 녹인다 (정점색, _elf_face가 굽고 나서 칠한다)
+                nring = (len(buf.v) - v_blush - 1) // (len(rings) + 1)
+                radii = (1.0,) + tuple(rings)
+                for li, r in enumerate(radii):
+                    for i in range(nring):
+                        self._blush_t[v_blush + li * nring + i] = r
+                self._blush_t[len(buf.v) - 1] = 0.0
             for j in range(self.blush_lines):
                 ox = (j - (self.blush_lines - 1) / 2) * 0.011 * sz * bs
-                self._stroke(buf, [(bx + ox + 0.003 * sz, bz + 0.006 * sz), (bx + ox - 0.003 * sz, bz - 0.006 * sz)],
-                             [0.0018 * sz, 0.0018 * sz], 0.0011, m["blush_l"])
+                # 점 5개로 나눠 둥근 볼 표면을 따른다 (두 점 띠는 가운데가 볼터치·피부 아래로 묻혀 점처럼 보였다)
+                ln = [(bx + ox + lerp(0.003, -0.003, t) * sz, bz + lerp(0.006, -0.006, t) * sz)
+                      for t in (0.0, 0.25, 0.5, 0.75, 1.0)]
+                self._stroke(buf, ln, [0.0018 * sz * (0.6 if t in (0.0, 1.0) else 1.0) for t in (0.0, 0.25, 0.5, 0.75, 1.0)],
+                             0.0014, m["blush_l"])
         # 입
         mq = P["mouth"]
         mw = mq["w"] * sz / 2
@@ -2040,8 +2298,20 @@ def _elf_face(self, **kw):
     (+ expr={'이름': {...}}로 추가) + 교정 키 blink_<표정>."""
     f = Face(self, **kw)
     ob = f.build()
+    self._decal_normals(ob)
     vc = vc_material(f"{self.name}_toon_vc", self.line)
     bake_vcol(ob)
+    if f.blush_soft > 0 and f._blush_t:
+        # 볼터치 가장자리를 피부색으로 녹인다: 고리 반경 r(1 = 가장자리)에서 r ≥ 1 - soft 구간을 부드럽게
+        ca = ob.data.color_attributes["Col"]
+        bl, sk = hex_srgb(f.blush_hex), hex_srgb(self.skin_hex)
+        soft = f.blush_soft
+        for li, lp in enumerate(ob.data.loops):
+            r = f._blush_t.get(lp.vertex_index)
+            if r is None:
+                continue
+            a = smoothstep(1.0 - soft, 1.0, r)
+            ca.data[li].color_srgb = (*(lerp(x, y, a) for x, y in zip(bl, sk)), 1.0)
     remap_to_vc(ob, vc)
     collapse_slots(ob)
     self.face_obj = ob
