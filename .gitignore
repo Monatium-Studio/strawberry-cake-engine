@@ -1,0 +1,26 @@
+# 의존성·빌드 산출물
+node_modules/
+dist/
+*.tsbuildinfo
+
+# 캐시
+.vite/
+.cache/
+node_modules/.vite/
+
+# 생성되는 스크린샷 (npm run shot, scripts/examplecheck.mjs)
+shots/
+
+# Blender 백업·임시
+*.blend1
+*.blend@
+__pycache__/
+
+# 비밀 값은 저장소에 두지 않는다
+.env
+.env.*
+
+# OS·에디터
+.DS_Store
+.vscode/
+.idea/

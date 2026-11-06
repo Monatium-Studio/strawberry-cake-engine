@@ -1,0 +1,44 @@
+{
+  "name": "strawberry-cake-engine",
+  "version": "0.1.0",
+  "description": "A small three.js + Rapier game engine: fixed-step loop, physics, navmesh agents, rigged characters, toon shading, Shadow DOM UI and i18n.",
+  "license": "MIT",
+  "author": "Monatium Studio",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*"
+  },
+  "files": [
+    "src",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "lines": "node scripts/lineseditor.mjs",
+    "i18n:check": "node scripts/i18n-check.mjs",
+    "i18n:fill": "node scripts/i18n-fill.mjs",
+    "model": "node scripts/blender.mjs",
+    "shot": "node scripts/shot.mjs",
+    "examplecheck": "node scripts/examplecheck.mjs"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.21.0",
+    "modern-screenshot": "^4.7.0",
+    "recast-navigation": "0.44.0",
+    "three": "^0.170.0",
+    "three-mesh-bvh": "0.9.16"
+  },
+  "devDependencies": {
+    "@types/three": "^0.170.0",
+    "playwright": "^1.64.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  }
+}
