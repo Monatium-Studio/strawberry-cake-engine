@@ -15,6 +15,14 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 #side a { display: block; color: var(--text); text-decoration: none; padding: 3px 6px; border-radius: 4px; }
 #side a:hover, #side a.on { background: #343943; color: var(--accent); }
 #side a.to-game { margin: 0 0 6px; color: var(--accent); }
+#search { position: sticky; top: -12px; margin: 0 -12px 4px; padding: 6px 12px; background: var(--panel); display: flex; align-items: center; gap: 6px; z-index: 1; }
+#q { flex: 1; min-width: 0; font: inherit; color: var(--text); background: #1b1d22; border: 1px solid #454b57; border-radius: 4px; padding: 4px 8px; }
+#q:focus { outline: none; border-color: var(--accent); }
+#count { flex: none; color: var(--muted); font: 11px ui-monospace, Menlo, monospace; }
+#list:focus { outline: none; }
+#list:focus-visible a.on { outline: 1px solid var(--accent); }
+#side a.cur { background: #2c3038; outline: 1px dashed #5a606b; }
+#side [hidden] { display: none; }
 #stage { position: relative; flex: 1; min-width: 0; }
 #stage canvas { display: block; width: 100%; height: 100%; }
 #hud { position: absolute; left: 10px; top: 8px; right: 10px; pointer-events: none; font: 12px/1.35 ui-monospace, Menlo, monospace; color: #f2f2f2; text-shadow: 0 1px 2px #000; white-space: pre-wrap; }
