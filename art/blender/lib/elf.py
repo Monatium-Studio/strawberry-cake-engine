@@ -981,6 +981,57 @@ class Elf:
         u = sum((uvw[i] * x for i, x in zip(tris[idx], bw)), V((0, 0, 0)))
         return self._shade_normal(u)
 
+    FACE_DECAL_TOL = 0.004   # m (× k): 얼굴 데칼 정점과 머리 피부 사이 최대 거리. 데칼 띄움은 0.8~1.6 mm
+
+    def _check_face_decals(self, ob):
+        """얼굴 데칼(눈·속눈썹·눈썹·입·볼터치) 정점이 모두 머리 피부 위에 있는지 확인하고, 아니면 빌드를 멈춘다.
+        정면 광선이 머리에 맞아야 하고(얼굴 실루엣 안), 맞은 점과 정점 거리가 FACE_DECAL_TOL 이하여야 한다. 셰이프 키
+        모양마다 본다. 얼굴 크기·눈 크기를 바꿔 볼터치·입이 턱 밖으로 나가면 투영이 빗나가 얼굴 앞 평면에 뜨거나(옆에서 원기둥)
+        몸 위에 그려졌다 (2026-11-07 이드)."""
+        me = ob.data
+        mw = ob.matrix_world
+        tol = self.FACE_DECAL_TOL * self.k
+        keys_ = list(me.shape_keys.key_blocks) if me.shape_keys else [None]
+        mats = [m.name if m else "?" for m in me.materials]
+        vmat = {}
+        for p in me.polygons:
+            for vi in p.vertices:
+                vmat.setdefault(vi, mats[p.material_index] if mats else "?")
+        bad = {}
+        kmap = {kb.name: kb for kb in keys_ if kb is not None}
+        basis = keys_[0]
+
+        def shown(kb, i):
+            """키를 켰을 때 보이는 정점 위치. 교정 키 blink_<표정>은 blink + 표정 + 교정이 함께 켜진 모양으로 본다."""
+            if kb is None:
+                return me.vertices[i].co
+            co = kb.data[i].co.copy()
+            parts = kb.name.split("_", 1)
+            if parts[0] == "blink" and len(parts) == 2 and parts[1] in kmap and "blink" in kmap:
+                b0 = basis.data[i].co
+                co = co + (kmap["blink"].data[i].co - b0) + (kmap[parts[1]].data[i].co - b0)
+            return co
+        for kb in keys_:
+            for i, v in enumerate(me.vertices):
+                co = mw @ shown(kb, i)
+                hit = self.head_bvh.ray_cast(V((co.x, -2.0, co.z)), V((0, 1, 0)))
+                # 피부 앞으로 뜬 거리 (피부 안쪽으로 숨은 정점은 보이지 않으니 괜찮다: 감은 눈 교정 키가 눈동자를 접어 넣는다)
+                d = (hit[0].y - co.y) if hit[0] is not None else None
+                if d is None or d > tol:
+                    near = self.head_bvh.find_nearest(co)
+                    dn = (near[0] - co).length if near[0] is not None else 9.9
+                    if d is None or dn > tol:
+                        nm = (kb.name if kb is not None else "basis", vmat.get(i, "?"))
+                        b = bad.setdefault(nm, [0, 0.0, co.copy()])
+                        b[0] += 1
+                        b[1] = max(b[1], dn if d is None else min(d, dn))
+        if bad:
+            lines = [f"  {key}/{mat}: {n} verts, max {mx * 1000:.1f} mm, e.g. ({c.x:.3f}, {c.y:.3f}, {c.z:.3f})"
+                     for (key, mat), (n, mx, c) in sorted(bad.items())]
+            raise RuntimeError(f"{self.name}: 얼굴 데칼이 머리 피부를 벗어났다 (허용 {tol * 1000:.1f} mm, 정면 광선이 얼굴에 "
+                               f"맞아야 함). 볼터치 blush_dx/dz/size, 입 dz, 눈 eye_size/eye_height를 얼굴 안으로:\n"
+                               + "\n".join(lines))
+
     def _decal_normals(self, ob):
         """얼굴 데칼 정점 법선을 아래 피부의 음영 법선으로 (데칼 위 툰 경계가 피부 경계와 이어진다: 볼터치 끝의 계단 방지)."""
         me = ob.data
@@ -2309,6 +2360,7 @@ def _elf_face(self, **kw):
     (+ expr={'이름': {...}}로 추가) + 교정 키 blink_<표정>."""
     f = Face(self, **kw)
     ob = f.build()
+    self._check_face_decals(ob)
     self._decal_normals(ob)
     vc = vc_material(f"{self.name}_toon_vc", self.line)
     bake_vcol(ob)
