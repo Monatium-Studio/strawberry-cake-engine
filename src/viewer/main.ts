@@ -44,6 +44,13 @@ const VIEW_DIRS: Record<string, Vec3> = {
   low: [0.6, -0.25, 1],
 };
 
+/** 보기 방향: 이름(VIEW_DIRS) 또는 'x_y_z' 숫자 셋 (예: 0.5_-0.2_1 = 오른쪽 아래 앞에서). 각도별 점검용 */
+function viewDir(v: string): Vec3 | undefined {
+  if (VIEW_DIRS[v]) return VIEW_DIRS[v];
+  const m = v.split('_').map(Number);
+  return m.length === 3 && m.every(Number.isFinite) && m.some((x) => x !== 0) ? (m as Vec3) : undefined;
+}
+
 const BASE = import.meta.env.BASE_URL;
 const params = new URLSearchParams(location.search);
 const mode = params.get('mode') ?? 'single';
@@ -414,8 +421,8 @@ async function sheet(path: string) {
   const floorParam = params.get('floor');
   floor.visible = floorParam ? floorParam === '1' : !focusName && stats.min[1] > -0.02;
   views.forEach((v, i) => {
-    const dir = VIEW_DIRS[v];
-    if (!dir) throw new Error(`알 수 없는 view "${v}". 가능: ${Object.keys(VIEW_DIRS).join(', ')}`);
+    const dir = viewDir(v);
+    if (!dir) throw new Error(`알 수 없는 view "${v}". 가능: ${Object.keys(VIEW_DIRS).join(', ')} 또는 x_y_z`);
     const col = i % cols;
     const row = Math.floor(i / cols);
     const x = col * cw;
@@ -482,7 +489,7 @@ async function openModel(path: string | null, { push = false, first = false } = 
 
   let target: THREE.Object3D = root;
   if (first && focusName) target = root.getObjectByName(focusName) ?? root;
-  const dir = VIEW_DIRS[(first && params.get('view')) || '34'] ?? VIEW_DIRS['34'];
+  const dir = viewDir((first && params.get('view')) || '34') ?? VIEW_DIRS['34'];
   floor.visible = stats.min[1] > -0.02;
   const center = fitCamera(boxOf(target), dir, camera.aspect);
   controls!.target.copy(center);
