@@ -9,6 +9,8 @@ import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
  * - 오브젝트 커스텀 속성 `noOutline` = 1 이면 아웃라인 생략 (자식에게 상속)
  * - 오브젝트 커스텀 속성 `outline` = 숫자(m) 이면 아웃라인 두께 지정 (자식에게 상속)
  * - 머티리얼 커스텀 속성 `lineColor` = "#rrggbb" 이면 그 색으로 아웃라인, 없으면 바탕색을 어둡게 한 색
+ * - 반투명 메시는 아웃라인이 없다. 오브젝트 커스텀 속성 `glassOutline` = 1 이면(유리) 헐을 반투명 차례에서 유리 다음에 그려
+ *   옆 실루엣만 남긴다: 유리(양면, 깊이 씀)가 먼저 깊이를 써서 헐의 안쪽·뒤쪽이 가려진다. 유리 머티리얼은 양면이어야 한다
  */
 
 export const DEFAULT_OUTLINE = 0.006; // m
@@ -183,11 +185,12 @@ export function setOutlineViewport(drawingBufferHeight: number): void {
   outlineView.uViewH.value = Math.max(1, drawingBufferHeight);
 }
 
-function outlineMaterial(color: THREE.Color, thickness: number, skinned: boolean, base: THREE.Color, mode: OutlineMode = 'crisp'): THREE.MeshBasicMaterial {
-  const key = `${color.getHexString()}|${base.getHexString()}|${thickness.toFixed(5)}|${skinned ? 1 : 0}|${mode}`;
+function outlineMaterial(color: THREE.Color, thickness: number, skinned: boolean, base: THREE.Color, mode: OutlineMode = 'crisp', glass = false): THREE.MeshBasicMaterial {
+  const key = `${color.getHexString()}|${base.getHexString()}|${thickness.toFixed(5)}|${skinned ? 1 : 0}|${mode}${glass ? '|glass' : ''}`;
   let m = outlineMatCache.get(key);
   if (m) return m;
-  m = new THREE.MeshBasicMaterial({ color, side: THREE.BackSide });
+  // glass: 반투명 차례에서 유리 다음(renderOrder +1)에 그린다. 합치기(bake·rigidMerge)는 건너뛴다 (userData.outline 없음)
+  m = new THREE.MeshBasicMaterial({ color, side: THREE.BackSide, transparent: glass });
   m.name = 'OUTLINE';
   const uniforms = { uOutline: { value: thickness }, uBase: { value: base.clone() } };
   m.onBeforeCompile = (shader) => {
@@ -225,7 +228,7 @@ function outlineMaterial(color: THREE.Color, thickness: number, skinned: boolean
   };
   m.customProgramCacheKey = () => 'sce-outline-2';
   // 합치기(bake.ts)가 읽는다: 같은 굵기·모드의 외곽선은 정점 색 외곽선 하나로 합칠 수 있다
-  m.userData.outline = { thickness, skinned, mode, base: base.clone() };
+  if (!glass) m.userData.outline = { thickness, skinned, mode, base: base.clone() };
   outlineMatCache.set(key, m);
   return m;
 }
@@ -434,8 +437,8 @@ export async function smoothGeometryAsync(g: THREE.BufferGeometry, tick: () => P
 }
 
 /** 아웃라인 헐을 붙일 메시와 두께 (applyOutlines·prepareOutlines 공용) */
-function outlineTargets(root: THREE.Object3D, defaultThickness: number): { mesh: THREE.Mesh; thickness: number; mats: THREE.Material[] }[] {
-  const out: { mesh: THREE.Mesh; thickness: number; mats: THREE.Material[] }[] = [];
+function outlineTargets(root: THREE.Object3D, defaultThickness: number): { mesh: THREE.Mesh; thickness: number; mats: THREE.Material[]; glass: boolean }[] {
+  const out: { mesh: THREE.Mesh; thickness: number; mats: THREE.Material[]; glass: boolean }[] = [];
   root.traverse((o) => {
     const mesh = o as THREE.Mesh;
     if (!mesh.isMesh || mesh.userData.isOutline) return;
@@ -443,8 +446,9 @@ function outlineTargets(root: THREE.Object3D, defaultThickness: number): { mesh:
     const thickness = Number(inherited(mesh, 'outline') ?? defaultThickness);
     if (!(thickness > 0)) return;
     const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    if (mats.every((m) => m.name.startsWith('UNLIT_') || m.transparent)) return;
-    out.push({ mesh, thickness, mats });
+    const glass = Number(inherited(mesh, 'glassOutline') ?? 0) === 1 && mats.every((m) => m.transparent);
+    if (!glass && mats.every((m) => m.name.startsWith('UNLIT_') || m.transparent)) return;
+    out.push({ mesh, thickness, mats, glass });
   });
   return out;
 }
@@ -457,10 +461,10 @@ export async function prepareOutlines(root: THREE.Object3D, tick: () => Promise<
 /** root 아래 모든 메시에 아웃라인 헐을 붙인다. 이미 붙은 헐은 건너뛴다. */
 export function applyOutlines(root: THREE.Object3D, defaultThickness = DEFAULT_OUTLINE, opts: { mode?: OutlineMode } = {}): void {
   const mode = opts.mode ?? 'crisp';
-  for (const { mesh, thickness, mats } of outlineTargets(root, defaultThickness)) {
+  for (const { mesh, thickness, mats, glass } of outlineTargets(root, defaultThickness)) {
     const skinned = (mesh as THREE.SkinnedMesh).isSkinnedMesh === true;
     const geo = smoothGeometry(mesh.geometry);
-    const olMats = mats.map((m) => outlineMaterial(lineColorFor(m), thickness, skinned, (m as THREE.MeshToonMaterial).color ?? lineColorFor(m), mode));
+    const olMats = mats.map((m) => outlineMaterial(lineColorFor(m), thickness, skinned, (m as THREE.MeshToonMaterial).color ?? lineColorFor(m), mode, glass));
     const material = Array.isArray(mesh.material) ? olMats : olMats[0];
 
     let hull: THREE.Mesh;
@@ -484,6 +488,7 @@ export function applyOutlines(root: THREE.Object3D, defaultThickness = DEFAULT_O
     hull.castShadow = false;
     hull.receiveShadow = false;
     hull.frustumCulled = mesh.frustumCulled;
+    if (glass) hull.renderOrder = mesh.renderOrder + 1;
     mesh.add(hull);
   }
 }
