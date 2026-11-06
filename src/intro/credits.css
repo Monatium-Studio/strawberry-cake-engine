@@ -1,0 +1,65 @@
+/* 엔진 첫 카드: Produced by MONATIUM STUDIO · Powered by STRAWBERRY CAKE ENGINE */
+.sce-intro-card--credits {
+  background:
+    radial-gradient(ellipse 34% 52% at 25% 50%, rgba(120, 132, 146, 0.14), transparent 70%),
+    radial-gradient(ellipse 34% 52% at 75% 50%, rgba(242, 71, 94, 0.10), transparent 70%),
+    radial-gradient(ellipse 85% 75% at 50% 50%, #15171b 0%, #0a0b0d 60%, #030304 100%);
+}
+.sce-intro-card--credits.is-active .sce-intro-stage { animation: sce-cr-push 4s cubic-bezier(0.2, 0.6, 0.3, 1) both; }
+@keyframes sce-cr-push {
+  from { transform: translate(-50%, -50%) scale(0.97); }
+  to { transform: translate(-50%, -50%) scale(1); }
+}
+
+.sce-intro-card--credits.is-active .L-divider { animation: sce-cr-divider 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) 0.1s both; }
+@keyframes sce-cr-divider {
+  from { opacity: 0; transform: scaleY(0); }
+  to { opacity: 1; transform: none; }
+}
+.sce-intro-card--credits.is-active .L-lbl-produced { animation: sce-cr-label 0.7s ease-out 0.25s both; }
+.sce-intro-card--credits.is-active .L-lbl-powered { animation: sce-cr-label 0.7s ease-out 0.55s both; }
+@keyframes sce-cr-label {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* 왼쪽: 톱니가 돌며 제자리에 서고 글자가 떠오른다 */
+.sce-intro-card--credits.is-active .L-ms-gear,
+.sce-intro-card--credits.is-active .L-ms-gear-shadow { animation: sce-cr-gear 1.7s cubic-bezier(0.16, 0.8, 0.24, 1) 0.15s both; }
+@keyframes sce-cr-gear {
+  from { opacity: 0; transform: rotate(-40deg) scale(0.9); }
+  45% { opacity: 1; }
+  to { opacity: 1; transform: none; }
+}
+.sce-intro-card--credits.is-active .L-ms-word { animation: sce-intro-rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) 0.5s both; }
+.sce-intro-card--credits.is-active .L-ms-sub { animation: sce-intro-rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) 0.7s both; }
+
+/* 오른쪽: 케이크가 통통 놓이고 딸기가 떨어져 앉는다 */
+.sce-intro-card--credits.is-active .L-en-cake { animation: sce-cr-cake 0.75s cubic-bezier(0.34, 1.56, 0.64, 1) 0.45s both; }
+@keyframes sce-cr-cake {
+  from { opacity: 0; transform: scale(0.6); }
+  40% { opacity: 1; }
+  to { opacity: 1; transform: none; }
+}
+.sce-intro-card--credits.is-active .L-en-berry { animation: sce-cr-berry 0.9s linear 0.85s both; }
+@keyframes sce-cr-berry {
+  0% { opacity: 0; transform: translateY(-160%); animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45); }
+  10% { opacity: 1; }
+  45% { transform: translateY(0) scale(1.18, 0.8); animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1); }
+  65% { transform: translateY(-14%) scale(0.95, 1.06); animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45); }
+  82% { transform: translateY(0) scale(1.05, 0.95); }
+  100% { opacity: 1; transform: none; }
+}
+.sce-intro-card--credits.is-active .L-en-word { animation: sce-cr-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.95s both; }
+@keyframes sce-cr-pop {
+  from { opacity: 0; transform: scale(0.75); }
+  to { opacity: 1; transform: none; }
+}
+.sce-intro-card--credits.is-active .L-en-sub { animation: sce-intro-rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) 1.15s both; }
+
+/* 광택: 왼쪽 로고에서 오른쪽 로고로 한 번 */
+.sce-intro-card--credits.is-active .sce-intro-sheen__band { animation: sce-cr-sheen 1.5s cubic-bezier(0.45, 0.05, 0.35, 1) 1.5s both; }
+@keyframes sce-cr-sheen {
+  from { transform: translateX(-110%) skewX(-18deg); }
+  to { transform: translateX(600%) skewX(-18deg); }
+}

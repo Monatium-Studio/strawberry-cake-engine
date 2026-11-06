@@ -12,6 +12,9 @@ export const UI_STRINGS: Record<string, Tr> = {
   'common.back': { ko: '돌아가기', en: 'Back', ja: '戻る' },
   'common.sec': { ko: '{n}초', en: '{n}s', ja: '{n}秒' },
 
+  // ---------------------------------------------------------------- 인트로 (intro/Intro)
+  'intro.hint': { ko: '클릭 또는 아무 키: 넘기기 · Esc: 모두 건너뛰기', en: 'Click or any key: next · Esc: skip all', ja: 'クリックまたは任意のキー：次へ · Esc：すべてスキップ' },
+
   // ---------------------------------------------------------------- 언어
   'lang.title': { ko: '언어 선택', en: 'Select Language', ja: '言語選択' },
   'lang.hint': { ko: '설정에서 언제든 바꿀 수 있습니다', en: 'You can change this anytime in Settings', ja: '設定からいつでも変更できます' },

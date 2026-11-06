@@ -1,0 +1,84 @@
+/* 엔진 인트로 공통. 크기는 인트로 영역 기준 컨테이너 단위(cqw/cqh).
+   성능: 레이어의 transform/opacity만 애니메이션한다. SVG 내부·필터는 움직이지 않는다. */
+
+.sce-intro {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  overflow: hidden;
+  background: #000;
+  pointer-events: auto;
+  container-type: size;
+  transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sce-intro.is-out { opacity: 0; }
+
+.sce-intro-card {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.6s;
+}
+.sce-intro-card.is-active { opacity: 1; visibility: visible; transition-delay: 0s; }
+.sce-intro-card.is-leaving { opacity: 0; transition-duration: 0.52s; }
+.sce-intro-card.is-leaving.is-fast { transition-duration: 0.26s; }
+
+.sce-intro-stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: min(60cqh, 34cqw);
+  transform: translate(-50%, -50%);
+}
+.sce-intro-stage > img,
+.sce-intro-stage > canvas {
+  position: absolute;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.sce-intro-card.is-active .L,
+.sce-intro-card.is-active .sce-intro-sheen__band { will-change: transform, opacity; }
+
+/* 광택: 정적인 마스크(로고 모양) 안에서 밝은 띠만 지나간다. 움직임은 카드 CSS가 준다 */
+.sce-intro-sheen {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  mask-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+}
+.sce-intro-sheen__band {
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  left: 0;
+  width: 18%;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0) 30%, rgba(255, 255, 255, 0.8) 50%, rgba(255, 255, 255, 0) 70%, transparent 100%);
+  transform: translateX(-110%) skewX(-18deg);
+}
+
+.sce-intro-hint {
+  position: absolute;
+  right: 28px;
+  bottom: 22px;
+  font: 500 12px/1 var(--ui-sans, system-ui, sans-serif);
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.55);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  animation: sce-intro-fade 0.6s ease 1.4s both;
+}
+.sce-intro.is-out .sce-intro-hint { visibility: hidden; }
+
+@keyframes sce-intro-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sce-intro-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+/* 움직임 줄이기: 이동·회전·광택 없이 페이드만 */
+.sce-intro--reduced .sce-intro-card *,
+.sce-intro--reduced .sce-intro-card { animation: none !important; }
+.sce-intro--reduced .sce-intro-sheen { display: none; }

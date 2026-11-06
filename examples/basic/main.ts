@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {
   Assets,
   Engine,
+  Intro,
   NavDebug,
   Physics,
   RAPIER,
@@ -31,6 +32,7 @@ import './strings';
  *   - 툰 셰이딩 + 외곽선 (toonMaterial, applyOutlines)
  *   - 닫힌 섀도 루트 UI와 일시정지·설정 메뉴 (Esc)
  *   - ko/en 다국어 (설정 메뉴의 언어)
+ *   - 로고 인트로 (엔진 첫 카드만. ?nointro=1이면 생략)
  */
 
 configureSettings({ storageKey: 'sce-example.settings' });
@@ -65,6 +67,8 @@ const SPAWN = new THREE.Vector3(-6, 0, 6);
 
 async function main(): Promise<void> {
   const container = uiContainer();
+  // 인트로는 장면을 만드는 동안 위에 덮여 돈다 (레이어 그림은 준비 단계에서 미리 그린다)
+  if (new URLSearchParams(location.search).get('nointro') !== '1') void new Intro(container).play();
   const engine = new Engine(container, { clearColor: 0xf6dfe6 });
   installScreenshot(engine, { prefix: 'strawberry-cake' });
   const physics = await Physics.create();

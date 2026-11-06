@@ -35,6 +35,11 @@ try {
   });
   const t0 = Date.now();
   await page.goto(`${base}examples/basic/`);
+  // 인트로 (엔진 첫 카드): 다 그려진 장면을 찍고 끝날 때까지 기다린다
+  await page.waitForFunction(() => !!window.__intro || !!window.__error, null, { timeout: 20000 });
+  await page.evaluate(() => window.__intro?.waitFor('credits', 2600));
+  await page.screenshot({ path: join(outDir, '0-intro.png') });
+  await page.waitForFunction(() => !window.__intro || !!window.__error, null, { timeout: 20000 });
   await page.waitForFunction(() => window.__demo?.ready === true || !!window.__error, null, { timeout: 60000 });
   const err = await page.evaluate(() => window.__error);
   if (err) throw new Error(`예제 오류: ${err}`);
