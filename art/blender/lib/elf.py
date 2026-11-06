@@ -592,6 +592,8 @@ class Elf:
         self.cheek_rig = bool(cheek_rig)
         self.cheeks = {}          # 볼 리그: side → {"c": 볼 중심(피부), "n": 바깥 법선, "tx": 가로 접선} (_build_cheek_rig)
         self.face_decals = []     # 얼굴 데칼로 등록한 파츠 태그 (볼 웨이트를 받는다, face_decal())
+        self.coverage_tags = []   # 가랑이·엉덩이를 덮는 옷 (underwear, pants, coverage()로 선언한 원피스·바디슈트)
+        self.skirt_tags = []      # 치마형 옷 (몸에서 떨어지는 자락: skirt_part()로 등록). finalize가 가림 층을 확인한다
         self.skin_mat = mat(f"{name}_skin", skin) if isinstance(skin, str) else skin
         self.skin_hex = skin if isinstance(skin, str) else srgb_hex(mat_srgb(skin))
         self.parts: list[Part] = []
@@ -980,7 +982,7 @@ class Elf:
         bm = bmesh.new()
         bm.from_mesh(ob.data)
         # 볼 웨이트가 닿는 면과 그 바로 바깥 한 줄 (경계가 매끄럽게 이어지게)
-        near = [f for f in bm.faces if any(self._cheek_r2(v.co, sd) < 1.2 for sd in ("L", "R") for v in f.verts)]
+        near = [f for f in bm.faces if any(self._cheek_r2(v.co, sd) < 0.6 for sd in ("L", "R") for v in f.verts)]
         edges = list({e for f in near for e in f.edges})
         if edges:
             bmesh.ops.subdivide_edges(bm, edges=edges, cuts=2, use_grid_fill=True, smooth=1.0)
@@ -1043,6 +1045,37 @@ class Elf:
         if tag and tag not in self.face_decals:
             self.face_decals.append(tag)
         return tag
+
+    # ------------------------------------------------------------------ coverage (속옷 층·가림)
+    def coverage(self, tag_or_obj):
+        """가랑이와 엉덩이를 빈틈없이 덮는 옷을 가림 층으로 선언한다 (가랑이까지 막힌 바디슈트·레오타드·원피스 수영복 등).
+        선언한 옷이 있으면 속옷 층 없이도 finalize가 경고하지 않는다. underwear()와 pants()는 저절로 등록된다."""
+        tag = tag_or_obj if isinstance(tag_or_obj, str) else next(
+            (p.tag for p in self.parts if p.obj is tag_or_obj), None)
+        if tag is None or not any(p.tag == tag for p in self.parts):
+            _warn(f"{self.name}: coverage({tag_or_obj!r}) — 그런 파츠가 없다")
+            return None
+        if tag not in self.coverage_tags:
+            self.coverage_tags.append(tag)
+        return tag
+
+    def skirt_part(self, tag_or_obj):
+        """치마형 옷(달릴 때 흔들려 아래가 보일 수 있는 자락)을 등록한다. 게임 쪽 자락 도우미가 skirt 셸을 만들 때 부른다."""
+        tag = tag_or_obj if isinstance(tag_or_obj, str) else next(
+            (p.tag for p in self.parts if p.obj is tag_or_obj), None)
+        if tag and tag not in self.skirt_tags:
+            self.skirt_tags.append(tag)
+        return tag
+
+    def _check_coverage(self):
+        """치마형 옷이 있거나 바지가 없는데 가림 층(속옷·바지·선언한 원피스)이 없으면 경고한다."""
+        live = {p.tag for p in self.parts}
+        if any(t in live for t in self.coverage_tags):
+            return
+        skirts = [t for t in self.skirt_tags if t in live]
+        why = f"치마형 옷({', '.join(skirts)})이 있는데" if skirts else "바지가 없는데"
+        _warn(f"{self.name}: {why} 속옷 층이 없다 → e.underwear(재질, style='shorts'), "
+              f"가랑이까지 막힌 원피스·바디슈트면 e.coverage('<태그>')")
 
     def _weight_decal_obj(self, ob):
         """오브젝트 정점마다 cheek_decal_w로 정점 그룹을 다시 쓴다 (셰이프 키 Basis 위치 기준)."""
@@ -1431,6 +1464,8 @@ class Elf:
                     self._weight_decal_obj(p.obj)
             if self.face_obj is not None:
                 self._weight_decal_obj(self.face_obj)
+        if only is None:
+            self._check_coverage()
         vc = vc_material(f"{self.name}_toon_vc", self.line) if merge else None
         result = {}
         keys_ = []
@@ -3249,6 +3284,7 @@ def _elf_pants(self, material, *, waist=None, length=0.92, off=0.011, bag=0.012,
         loft(buf, st, segs=int(24 * self.q), cap0="round", cap1="lip", mat=material, wfn=self._torso_wfn,
              cap_len0=0.04 * k)
     self.part("pants_top", "body", fn)
+    self.coverage_tags.append("pants_top")
     for side in ("L", "R"):
         self.cover[f"leg_{side}"].append((-0.2, length))
         ch = self.leg_chain(side)
@@ -3277,6 +3313,71 @@ def _elf_pants(self, material, *, waist=None, length=0.92, off=0.011, bag=0.012,
                 band(buf, c - tan * hh * 0.5 * k, tan, (0, -1, 0), rx + off * k + extra(length), ry + off * k + extra(length),
                      hh * k, th * k, segs=self._s(18), mat=cm, w=ch.weights(length))
         self.part(f"pants_{side}", "body", fn)
+    return self
+
+
+# 속옷 층 모양: leg = 다리 길이 비율(0=고관절, 가랑이 ≈ 0.17), waist = 고관절(0) ~ 허리(1) 사이 윗단 높이,
+# off = 몸에서 띄운 거리(m), bag = 다리 통 부풀림(m), gather = 밑단을 모아 좁히는 정도(m, 블루머)
+UNDERWEAR_STYLES = {
+    "briefs": {"leg": 0.19, "waist": 0.62, "off": 0.003, "bag": 0.0, "gather": 0.0},
+    "shorts": {"leg": 0.30, "waist": 0.80, "off": 0.004, "bag": 0.003, "gather": 0.0},
+    "bloomers": {"leg": 0.26, "waist": 0.78, "off": 0.004, "bag": 0.013, "gather": 0.008},
+}
+
+
+def _elf_underwear(self, material, *, style="briefs", leg=None, waist=None, off=None, bag=None, gather=None,
+                   name="underwear"):
+    """속옷 층 (가림 층). 피부와 치마 사이의 단정하고 불투명한 단색 옷: 엉덩이와 가랑이를 빈틈없이 덮고, shorts·bloomers는
+    허벅지 윗부분까지 덮는다. 달리거나 높이 차서 치마가 흔들려도 그 아래가 비거나 구멍이 보이지 않게 한다.
+    pants와 같은 몸통 단면(torso_stations)·다리 사슬 웨이트를 써서 엉덩이·허벅지를 따라 움직인다. 레이스·비침·트임·
+    몸매 강조 같은 장식은 넣지 않는다 (CHARACTER_KIT.md 10장).
+    style: 'briefs' | 'shorts'(안전 바지) | 'bloomers' 또는 UNDERWEAR_STYLES 같은 사전. leg·waist·off·bag·gather로 덮어쓴다.
+    색은 material로 (옷에 맞는 단색). 덮은 구간의 맨살은 만들지 않는다."""
+    k = self.k
+    if isinstance(style, dict):
+        spec = dict(UNDERWEAR_STYLES["shorts"])
+        spec.update(style)
+    else:
+        if style not in UNDERWEAR_STYLES:
+            raise ValueError(f"underwear style {style!r}: {', '.join(UNDERWEAR_STYLES)} 중 하나 또는 사전")
+        spec = dict(UNDERWEAR_STYLES[style])
+    for key, val in (("leg", leg), ("waist", waist), ("off", off), ("bag", bag), ("gather", gather)):
+        if val is not None:
+            spec[key] = val
+    length, offk = spec["leg"], spec["off"] * k
+    zw = lerp(self.hipj_z, self.waist_z, spec["waist"])
+    self.cover["torso"].append((self.crotch_z - 0.05, zw))
+    st = self.torso_stations(self.crotch_z + 0.002 * k, zw, off=offk, p=2.2)
+    st[-1]["lip"] = 0.003 * k
+
+    def top(buf):
+        loft(buf, st, segs=int(24 * self.q), cap0="round", cap1="lip", mat=material, wfn=self._torso_wfn,
+             cap_len0=0.04 * k)
+    self.part(f"{name}_top", "body", top)
+    for side in ("L", "R"):
+        self.cover[f"leg_{side}"].append((-0.2, length))
+        ch = self.leg_chain(side)
+
+        def extra(t, length=length):
+            u = clamp((t + 0.05) / (length + 0.05))
+            e = spec["bag"] * math.sin(math.pi * min(1.0, u * 1.15)) ** 0.7
+            e -= spec["gather"] * smoothstep(0.80, 1.0, u)
+            return max(e, 0.0) * k
+
+        def fn(buf, ch=ch, extra=extra, length=length):
+            n = max(6, int((length + 0.12) / 0.035) + 2)
+            stl = []
+            for i in range(n):
+                t = lerp(-0.12, length, i / (n - 1))
+                c, tan = ch.at(t)
+                rx, ry = self.leg_r(clamp(t))
+                ex = extra(t)
+                stl.append({"c": c, "rx": rx + offk + ex, "ry": ry + offk + ex, "w": ch.weights(t)})
+            stl[-1]["lip"] = 0.003 * k
+            loft(buf, stl, segs=int(16 * self.q), cap0="round", cap1="lip", mat=material, ref=(0, -1, 0),
+                 cap_len0=0.03 * k)
+        self.part(f"{name}_{side}", "body", fn)
+    self.coverage_tags.append(f"{name}_top")
     return self
 
 
@@ -3693,6 +3794,7 @@ Elf.part = _elf_part
 Elf.shirt = _elf_shirt
 Elf.sleeves = _elf_sleeves
 Elf.pants = _elf_pants
+Elf.underwear = _elf_underwear
 Elf.boots = _elf_boots
 Elf.gloves = _elf_gloves
 Elf.belt = _elf_belt
