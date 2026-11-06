@@ -546,12 +546,13 @@ class Elf:
     head_w  머리 폭 / head (기본 1.04: 볼이 빵빵해 폭이 높이보다 약간 넓다)
     head_d  머리 깊이 / head (기본 0.92)
     cheek   볼 부풂 0~0.2 (기본 0.08)
-    cheek_h, cheek_w  볼 혹 중심 높이·세로 폭 (단위구 z, 기본 -0.38, 0.36 = 눈 높이). 원작 떡 볼: -0.68, 0.27
+    (얼굴 모양 기본값 = 모나티엄 스튜디오 트릭컬 하우스 스타일. 아래 떡 볼 인자는 시험용, 기본은 꺼짐)
+    cheek_h, cheek_w  볼 혹 중심 높이·세로 폭 (단위구 z, 기본 -0.38, 0.36 = 눈 높이). 떡 볼 시험값: -0.68, 0.27
     cheek_kx, cheek_ky  볼 혹의 옆 기본 비중(기본 0.4)과 앞쪽 비중(기본 0.5). 떡 볼: 0.3, 0.9 (3/4에서 볼이 옆머리 밖으로)
     thigh   허벅지 굵기 배율 (기본 1). 무릎 아래는 40%만 따라간다. 원작 SD 인물의 통통한 허벅지: 1.2~1.3
     jaw, jaw_d  턱 가로·앞뒤 좁힘 (기본 0.16, 0.14 = U자 턱). 떡 볼: 0, 0.08
     base    아래 반구 단면 초타원 지수 (기본 2 = 원). 3이면 납작하고 넓은 떡 바닥
-            기본값은 예전 모양 그대로다. 떡 모양 근거와 인물별 값: docs/art/cheeks-research.md 4.3절, CHARACTER_KIT.md 2장
+            기본값이 하우스 스타일이다. 떡 모양 시험 근거: docs/art/cheeks-research.md 4.3절, CHARACTER_KIT.md 2장
     face_flat  얼굴 앞면을 평평하게 하는 정도 배율 (기본 1, 0이면 둥근 앞면)
     face_shade  얼굴 앞면 음영 법선 (0~1, 기본 0.6): 머리 피부와 얼굴 데칼의 법선을 해석 표면 법선에서 앞쪽으로 눕힌다
             (애니 얼굴 법선 기법). 볼·턱 둥근 면을 따라 툰 경계(밝음/중간)가 얼굴을 가로지르는 띠가 덜 생긴다.
@@ -786,7 +787,7 @@ class Elf:
         if self.thigh != 1.0:
             # 허벅지 굵기 배율: 허벅지 가운데에서 가장 세고 무릎 아래로 40%까지 줄어든다 (SD 인물의 통통한 허벅지).
             # 고관절(t=0) 쪽은 1배로 둔다: 허벅지 윗면이 몸통·옷 밖으로 비어져 나오지 않게
-            full = lerp(1.0, self.thigh, smoothstep(0.02, 0.24, t))
+            full = lerp(1.0, self.thigh, smoothstep(0.12, 0.34, t))
             r *= lerp(full, 1.0 + (self.thigh - 1.0) * 0.4, smoothstep(0.30, 0.70, t))
         return r * self.k * self.lb, r * self.k * self.lb * 0.96
 
@@ -1848,9 +1849,10 @@ FACE_NEUTRAL = {
 
 # 감은 눈 속눈썹 띠 기본값 (Face(closed_lash=True) 또는 사전으로 덮어쓰기). 길이·선 굵기는 눈 크기(sz) 배
 #   n 톱니 수, len 가장 긴 톱니 길이, span 눈 폭 안의 범위(-1 안쪽 ~ +1 바깥), base 홈 깊이(len 비), grow 안쪽 톱니가
-#   짧아지는 정도, skew 끝이 바깥으로 쓸리는 정도, fill/line 띠·가장자리 색(None: 속눈썹색과 피부색을 섞은 연한 색 / 속눈썹색)
+#   짧아지는 정도, skew 끝이 바깥으로 쓸리는 정도, round 끝 둥글기(0 = 뾰족한 톱니, 1 = 둥근 다발),
+#   fill/line 띠·가장자리 색(None: 속눈썹색과 피부색을 섞은 연한 색 / 속눈썹색)
 CLOSED_LASH = {"n": 3, "len": 0.020, "span": (-0.80, 0.98), "base": 0.30, "grow": 0.35, "skew": 0.30,
-               "line_w": 0.0020, "fill": None, "line": None}
+               "line_w": 0.0020, "round": 0.0, "fill": None, "line": None}
 
 FACE_EXPR = {
     "blink": {"eye": {"close": 1.0}},
@@ -2019,7 +2021,8 @@ class Face:
             return v
 
         def closed(s):
-            return v0(s) - 0.010 * sz * _sup(s, 2.0)
+            # cdip: 감은 눈꺼풀 선 가운데가 내려가는 양 (기본 0.010 = 아래로 둥근 ‿). 음수면 위로 둥근 졸린 눈(⌒)
+            return v0(s) - q.get("cdip", 0.010) * sz * _sup(s, 2.0)
 
         c = q["close"]
         # 속눈썹 선은 윗 호의 LASH_SKIP번째 점부터 시작한다. 눈을 감을수록 그보다 안쪽 점들을 속눈썹 시작점으로
@@ -2147,6 +2150,7 @@ class Face:
         base = cl["base"]
         grow = cl["grow"]
         # 톱니 가장자리 점: 시작 → (홈, 끝)×n → 끝. 끝은 바깥쪽으로 skew만큼 쓸린다
+        rnd = cl.get("round", 0.0)
         zig = [(s0, 0.10)]
         for j in range(n):
             u0 = s0 + (s1 - s0) * j / n
@@ -2154,7 +2158,14 @@ class Face:
             g = lerp(1.0 - grow, 1.0, (j + 1) / n)
             if j > 0:
                 zig.append((u0, base))
-            zig.append((lerp(u0, u1, 0.55), g))
+            uc = lerp(u0, u1, 0.55)
+            if rnd > 0:
+                # 둥근 끝: 꼭짓점 하나 대신 반원에 가까운 점 다섯 (처진 속눈썹 다발)
+                hw = (u1 - u0) * 0.30 * rnd
+                for a, f in ((-1.0, 0.70), (-0.55, 0.92), (0.0, 1.0), (0.55, 0.92), (1.0, 0.70)):
+                    zig.append((uc + a * hw, base + (g - base) * f))
+            else:
+                zig.append((uc, g))
         zig.append((s1, 0.18))
         tops, bots = [], []
         for s, d in zig:
