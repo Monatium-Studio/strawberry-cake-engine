@@ -12,6 +12,11 @@ npm run dev                                              # /viewer.html 모델 �
 
 `cb.reset()`, `cb.mat(name, '#rrggbb', unlit=…, emission=…)`, `cb.box/cylinder/sphere/profile_extrude/from_pydata`, `cb.armature`, `cb.parent_to_bone`, `cb.skin_to`, `cb.empty('socket_…')`, `cb.export('<public/models 기준 경로>', props={...})`.
 스크립트는 환경 변수 `PROJECT_ROOT`(npm run model이 넣는다)로 라이브러리를 찾는다.
+예전 이름 `COMBATIUM_ROOT`도 대신 받는다.
+
+## SD 캐릭터 키트 (`art/blender/lib/elf.py`)
+
+몸·A 포즈 리그·머리·얼굴 데칼과 표정 모프·머리카락·옷을 같은 규칙으로 만드는 캐릭터 키트. 사용법과 설계 규칙은 [CHARACTER_KIT.md](CHARACTER_KIT.md).
 
 ## 규칙
 

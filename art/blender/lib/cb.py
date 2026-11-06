@@ -29,7 +29,8 @@ import bmesh
 import bpy
 from mathutils import Matrix, Vector
 
-ROOT = os.environ.get("PROJECT_ROOT") or os.path.abspath(
+# PROJECT_ROOT: 프로젝트 루트 (npm run model이 넣는다). COMBATIUM_ROOT는 예전 이름이라 대신 받아 준다
+ROOT = os.environ.get("PROJECT_ROOT") or os.environ.get("COMBATIUM_ROOT") or os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..")
 )
 MODELS_DIR = os.path.join(ROOT, "public", "models")
