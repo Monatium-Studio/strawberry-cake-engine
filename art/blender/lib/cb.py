@@ -447,6 +447,9 @@ def export(rel_path: str, *, props: dict | None = None, root: bpy.types.Object |
         export_skins=True,
         export_materials="EXPORT",
         export_image_format="AUTO",
+        # 모프 법선은 내보내지 않는다: 얼굴 데칼·머리 피부는 정한 음영 법선(custom normals)을 쓰는데, 내보내기는 셰이프 키
+        # 법선을 기하에서 다시 계산해 그 차이를 모프로 넣는다(뒤집힌 법선 Δ≈2). 표정 모프는 위치만 움직이면 충분하다
+        export_morph_normal=False,
     )
     size = hi - lo
     print(f"[cb] exported {rel_path}")
