@@ -341,7 +341,7 @@ ed.cheeks?.release();
 | 함수 | 주요 인자 | 메모 |
 |---|---|---|
 | `e.shirt(m)` | `hem`(z), `off=0.010`, `flare=0.014`, `collar="stand"/"turtle"/None`, `collar_mat`, `placket`, `buttons` | 몸판. 밑단에 두께 테두리(lip). 몸통 맨살을 덮는다 |
-| `e.sleeves(m)` | `length=0.97`, `off`, `flare`, `puff`, `cuff=(m, 높이, 두께)` | 양 소매 (arms 그룹) |
+| `e.sleeves(m)` | `length=0.97`, `off`, `flare`, `puff`, `cuff=(m, 높이, 두께)`, `inner=0.35` | 양 소매 (arms 그룹). `flare`·`puff`는 팔 바깥쪽으로 치우쳐 붙고 몸통 쪽(겨드랑이 쪽)은 `inner`배만 벌어진다(짧은 소매 밑단이 조끼·셔츠 옆구리로 파고들지 않게). 소맷단 띠는 소매 끝에서 끝나고, 끝과 팔 사이는 소매색을 어둡게 한 고리 판(밑단 안쪽 그늘)이 막는다. 소매 끝 근처 완장·띠는 밑단보다 팔 길이 0.15 이상 아래에 둔다 |
 | `e.pants(m)` | `waist`, `length=0.92`, `off`, `bag`(통), `blouse`(블라우징), `cuff` | 골반부 + 양 다리. 가림 층으로 저절로 등록 |
 | `e.underwear(m)` | `style='briefs'/'shorts'/'bloomers'` 또는 사전, `leg`, `waist`, `off`, `bag`, `gather` | 속옷 층(가림). 아래 '속옷 층' |
 | `e.boots(m)` | `top=0.62`(목 높이: 다리 비율), `sole=(m, 두께)`, `cuff`, `laces`, `tab`, `straps`, `toe` | 맨발 대신 |

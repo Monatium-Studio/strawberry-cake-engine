@@ -3521,34 +3521,65 @@ def _elf_shirt(self, material, *, hem=None, off=0.010, flare=0.014, collar="stan
     return self.part("shirt", "body", fn)
 
 
-def _elf_sleeves(self, material, *, length=0.97, off=0.010, flare=0.006, cuff=None, puff=0.0):
-    """소매 (양팔). length: 팔 길이 비율(1=손목). cuff=(재질, 높이, 두께) 소맷단 띠."""
+def _elf_sleeves(self, material, *, length=0.97, off=0.010, flare=0.006, cuff=None, puff=0.0, inner=0.35):
+    """소매 (양팔). length: 팔 길이 비율(1=손목). cuff=(재질, 높이, 두께) 소맷단 띠.
+    flare(끝으로 갈수록 벌어짐)·puff(가운데 부풂)는 팔 바깥쪽으로 치우쳐 붙는다: 몸통 쪽(겨드랑이 쪽) 면은 그 양의 inner배만
+    벌어진다(기본 0.35). 몸통 쪽까지 똑같이 벌어지면 짧은 소매 밑단이 조끼·셔츠 옆구리로 파고들었다(2026-11, 시온).
+    소맷단 띠는 소매 끝에서 끝나는 한 테이고, 끝과 팔 사이는 소매색을 어둡게 한 고리 판이 막는다(열린 종 안쪽 면이 두 번째
+    테처럼 보이지 않게, 흰 소매와 살결이 맞닿는 곳이 읽히게)."""
     k = self.k
+    lining = mat(f"{self.name}_sleeve_in_{material.name}", shade(srgb_hex(mat_srgb(material)), -0.28))
     for side in ("L", "R"):
         self.cover[f"arm_{side}"].append((0.0, length))
         ch = self.arm_chain(side)
+        pin = self.palm_n[side]          # 팔에서 몸통 쪽(겨드랑이 쪽) 방향 (A 포즈 레스트)
 
         def extra(t, length=length):
             return (flare * smoothstep(length - 0.35, length, t) + puff * math.sin(math.pi * clamp(t / 0.5))) * k
 
-        def fn(buf, ch=ch, side=side, extra=extra):
-            rings = self._limb_loft(buf, ch, self.arm_r, -0.04, length, material, segs=int(14 * self.q),
-                                    cap0="round", cap1=None, off=off * k, extra=extra)
-            # 끝단 두께
-            last = rings[-1]
+        def fn(buf, ch=ch, side=side, extra=extra, pin=pin):
+            a, b = -0.04, length
+            n = max(3, int((b - a) * ch.total / (0.018 * self.k)) + 2)
+            st = []
+            for i in range(n):
+                t = lerp(a, b, i / (n - 1))
+                c, tan = ch.at(t)
+                rx, ry = self.arm_r(clamp(t))
+                ex = extra(t)
+                d = pin - tan * pin.dot(tan)
+                d = d.normalized() if d.length > 1e-6 else V((0, 0, -1))
+                st.append({"c": c - d * ex * (1.0 - inner), "rx": rx + off * k + ex, "ry": ry + off * k + ex,
+                           "w": ch.weights(t), "p": 2.0})
+            loft(buf, st, segs=int(14 * self.q), cap0="round", cap1=None, mat=material, ref=(0, -1, 0),
+                 cap_len0=min(st[0]["rx"], st[0]["ry"]) * 0.8)
+            end = st[-1]
             c, tan = ch.at(length)
-            for kk in range(len(last)):
-                pass
+            ce = V(end["c"])
+            # 밑단 안쪽 그늘 판: 벌어진 소매 끝과 팔 사이를 막는 고리 판(소매색을 어둡게). 열린 종 안쪽 면이 또 하나의 테처럼
+            # 보이지 않고, 흰 소매와 살결 사이에 경계가 읽힌다
+            rin = (end["rx"] - (0.4 * cuff[2] * k if cuff else 0.004 * k))
+            A = V((0, -1, 0))
+            A = (A - tan * A.dot(tan)).normalized()
+            B = tan.cross(A).normalized()
+            segs_l = self._s(16)
+            arx, ary = self.arm_r(length)
+            pl = ce - tan * 0.003 * k
+            ring_o = ring_pts(pl, A, B, rin, rin, segs_l)
+            ring_i = ring_pts(c - tan * 0.003 * k, A, B, arx + 0.0015 * k, ary + 0.0015 * k, segs_l)
+            wl = ch.weights(length)
+            io = [buf.vert(q, wl) for q in ring_o]
+            ii = [buf.vert(q, wl) for q in ring_i]
+            for j in range(segs_l):
+                j2 = (j + 1) % segs_l
+                buf.face((io[j], io[j2], ii[j2], ii[j]), lining)
             if cuff:
                 cm, ch_h, th = cuff
-                rx, ry = self.arm_r(length)
-                band(buf, c - tan * ch_h * 0.5 * k, tan, (0, -1, 0), rx + off * k + extra(length), ry + off * k + extra(length),
+                # 소매 끝(t=length)에서 끝나는 띠: 안쪽 반경은 소매 면보다 살짝 안, 두께 th만큼 바깥으로
+                band(buf, ce - tan * ch_h * 0.5 * k, tan, (0, -1, 0), end["rx"] - 0.4 * th * k, end["ry"] - 0.4 * th * k,
                      ch_h * k, th * k, segs=self._s(16), mat=cm, w=ch.weights(length - 0.03))
             else:
-                rx, ry = self.arm_r(length)
-                band(buf, c - tan * 0.002 * k, tan, (0, -1, 0), rx + off * k + extra(length) - 0.004 * k,
-                     ry + off * k + extra(length) - 0.004 * k, 0.004 * k, 0.004 * k, segs=self._s(16), mat=material,
-                     w=ch.weights(length))
+                band(buf, ce - tan * 0.002 * k, tan, (0, -1, 0), end["rx"] - 0.004 * k, end["ry"] - 0.004 * k,
+                     0.004 * k, 0.004 * k, segs=self._s(16), mat=material, w=ch.weights(length))
         self.part(f"sleeve_{side}", "arms", fn)
     return self
 
