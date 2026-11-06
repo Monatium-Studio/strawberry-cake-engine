@@ -43,7 +43,8 @@ const toonCache = new WeakMap<THREE.Material, THREE.Material>();
 const biasCache = new WeakMap<THREE.Material, Map<string, THREE.Material>>();
 export function depthBiasFor(name: string): [number, number] | null {
   const n = name.toLowerCase();
-  if (/(_fine|_face)(\.\d+)?$|decal|stencil/.test(n)) return [-1, -4];
+  // 머티리얼이 둘 이상인 메시는 GLTFLoader가 자식을 <이름>_1, _2 …로 나눈다 (얼굴: 본체 + 하이라이트)
+  if (/(_fine|_face)(\.\d+|_\d+)?$|decal|stencil/.test(n)) return [-1, -4];
   if (/_detail(\.\d+)?$/.test(n)) return [-0.5, -2];
   return null;
 }

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { applyOutlines, toonMaterial } from '../render/toon';
 import { cullHiddenMatrices } from '../render/hiddenMatrices';
 import { RAPIER, type Physics } from '../physics/Physics';
+import { CheekRig } from './cheeks';
 import { FaceRig } from './face';
 import type { GroundProbe } from './ground';
 import { holdQuat, solveArm, smoother, wrapProp, type ArmChain, type DropOptions, type HandSlot, type Held, type HoldOptions } from './hold';
@@ -11,6 +12,7 @@ import { CONTROLLED_BONES, GESTURES, POSE_OSC, POSES, type Gesture, type Pose } 
  * 리깅된 캐릭터 컨트롤러 (휴머노이드 glb, 본 규약은 poses.ts).
  * 층: 레스트 포즈 × (기본 자세 ↔ 제스처 섞기) × 절차 움직임(숨쉬기, 시선, 걷기, 말할 때 고개)
  * 얼굴: 표정 전환(교정 키 규칙), 무작위 깜빡임, 말할 때 입 (FaceRig)
+ * 볼: 모델에 cheek_L·cheek_R 본이 있으면 볼 리그(CheekRig)가 머리 가속도로 출렁이고, 게임이 cheeks.puff·squash·pull을 부른다
  * 이동: 경로점을 따라 미끄러지듯 걷는다 (다리·팔 흔들기, 디딤발 붙이기, 땅 붙이기). 내비 에이전트가 낸 경로를 walk()에 넘기면 된다
  * 다른 몸(카메라 컨트롤러 등)이 지나가지 못하게 키네마틱 캡슐을 갖는다 (collider: false면 없음).
  * 손에 든 소품: hold(slot, 소품) → 손 소켓에 붙고, 자세의 쥔 자리(_holdR/_holdL)와 두 손 소품의 받침손을 팔 IK로 맞춘다.
@@ -108,6 +110,8 @@ export class Character {
   readonly root = new THREE.Group();
   readonly model: THREE.Object3D;
   readonly face: FaceRig;
+  /** 볼 리그 (키트 cheek_rig 모델만, 없으면 null). 머리 움직임에 따른 출렁임은 animate가 돌린다 */
+  readonly cheeks: CheekRig | null;
   readonly bones = new Map<string, BoneSlot>();
   /** 게임이 붙이는 자유 데이터 (진영, 역할 등) */
   readonly data: Record<string, unknown> = {};
@@ -250,6 +254,7 @@ export class Character {
     this.model = model ?? placeholderCharacter();
     this.root.add(this.model);
     this.face = new FaceRig(this.model);
+    this.cheeks = CheekRig.from(this.model);
     for (const name of CONTROLLED_BONES) {
       const bone = this.model.getObjectByName(name);
       if (!bone) continue;
@@ -484,6 +489,7 @@ export class Character {
     this.time += dt;
     this.updateFace(dt);
     this.applyPose(dt);
+    this.cheeks?.update(dt);
   }
 
   private updateMove(dt: number): void {

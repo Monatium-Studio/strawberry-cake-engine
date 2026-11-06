@@ -49,6 +49,7 @@ export * from './level/visual';
 export * from './character/Character';
 export * from './character/CharacterSet';
 export * from './character/animBudget';
+export * from './character/cheeks';
 export * from './character/face';
 export * from './character/ground';
 export * from './character/hold';

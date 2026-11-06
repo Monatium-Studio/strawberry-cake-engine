@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { loadModel, modelStats, type ModelStats } from '../render/loader';
+import { CheekRig } from '../character/cheeks';
 
 /**
  * 모델 뷰어
@@ -10,6 +11,8 @@ import { loadModel, modelStats, type ModelStats } from '../render/loader';
  *   &focus=head                        특정 노드에 맞춰 화면 잡기
  *   &morph=smile:1  &anim=클립&t=초     표정·포즈 지정 (시트 모드)
  *   &shot=1                            사이드바 숨김
+ *   &cheek=puff:1,squash:0.8,pullL:0.034;0;0.01,pullR:…,pull:…   볼 리그 상태 (시트 모드, 잡기는 x 바깥;y 위;z 앞 m)
+ *   단일 보기에서 볼 리그가 있으면 오른쪽 아래에 볼 조작판 (P 부풀리기, S 눌림, L·R·B 잡아 늘이기, 스페이스 놓기, H 흔들기, J 달리기)
  */
 
 declare global {
@@ -206,6 +209,31 @@ async function main() {
     const missing = wanted.map(([n]) => n).filter((n) => !found.has(n));
     if (missing.length) throw new Error(`모프 타깃 없음: ${missing.join(', ')}`);
   }
+  // 볼 리그 (cheek_L·cheek_R 본): ?cheek=puff:1,squash:1,pullL:x;y;z,pullR:…,pull:… (시트 모드 점검용)
+  const cheeks = CheekRig.from(root);
+  if (cheeks) cheeks.update(1 / 60);
+  const cheekParam = params.get('cheek');
+  if (cheekParam) {
+    if (!cheeks) throw new Error('볼 리그 없음 (cheek_L·cheek_R 본이 없다)');
+    let pulled = false;
+    for (const kv of cheekParam.split(',')) {
+      const [k, v = '1'] = kv.split(':');
+      if (k === 'pullL' || k === 'pullR' || k === 'pull') {
+        const [x, y, z] = v.split(';').map(Number);
+        cheeks.pull(k === 'pull' ? 'both' : k === 'pullL' ? 'L' : 'R', { x: x || 0, y: y || 0, z: z || 0 });
+        pulled = true;
+      }
+    }
+    if (pulled) for (let i = 0; i < 90; i++) cheeks.update(1 / 60);
+    const st: { puff?: number; squash?: number } = {};
+    for (const kv of cheekParam.split(',')) {
+      const [k, v = '1'] = kv.split(':');
+      if (k === 'puff') st.puff = Number(v);
+      if (k === 'squash') st.squash = Number(v);
+    }
+    cheeks.set(st);
+    root.updateMatrixWorld(true);
+  }
   const animName = params.get('anim');
   let poseMixer: THREE.AnimationMixer | null = null;
   if (animName && mode !== 'single') {
@@ -275,12 +303,97 @@ async function main() {
     mixer.clipAction(clip).play();
   }
   const clock = new THREE.Clock();
+  const cheekPanel = cheeks ? cheekControls(cheeks, root) : null;
   renderer.setAnimationLoop(() => {
-    mixer?.update(clock.getDelta());
+    const dt = clock.getDelta();
+    mixer?.update(dt);
+    if (cheekPanel) cheekPanel.update(dt);
     controls.update();
     renderer.render(scene, camera);
     window.__ready = true;
   });
+}
+
+/**
+ * 볼 리그 조작판 (단일 보기). 흔들기·달리기는 모델 뿌리를 위아래로 움직여 머리 가속도로 볼이 출렁이는지 본다
+ */
+function cheekControls(cheeks: CheekRig, root: THREE.Object3D): { update(dt: number): void } {
+  const base = root.position.clone();
+  let puffOn = false;
+  let run = false;
+  let shakeT = -1;
+  let t = 0;
+  const panel = document.createElement('div');
+  panel.id = 'cheeks';
+  panel.innerHTML = '<b>볼 리그</b>';
+  stage.appendChild(panel);
+  const btn = (label: string, key: string, fn: () => void): HTMLButtonElement => {
+    const b = document.createElement('button');
+    b.textContent = `${label} (${key})`;
+    b.onclick = () => {
+      fn();
+      sync();
+    };
+    panel.appendChild(b);
+    return b;
+  };
+  const togglePull = (side: 'L' | 'R' | 'both'): void => {
+    const on = side === 'both' ? cheeks.pulled('L') && cheeks.pulled('R') : cheeks.pulled(side);
+    if (on) cheeks.release(side === 'both' ? undefined : side);
+    else cheeks.pull(side, { x: 0.034, y: -0.004, z: 0.012 });
+  };
+  const bPuff = btn('부풀리기', 'P', () => cheeks.puff((puffOn = !puffOn) ? 1 : 0));
+  btn('눌림', 'S', () => cheeks.squash(1));
+  const bL = btn('왼볼 늘리기', 'L', () => togglePull('L'));
+  const bR = btn('오른볼 늘리기', 'R', () => togglePull('R'));
+  const bB = btn('양볼 늘리기', 'B', () => togglePull('both'));
+  btn('놓기', 'Space', () => cheeks.release());
+  btn('흔들기', 'H', () => (shakeT = 0));
+  const bRun = btn('달리기', 'J', () => (run = !run));
+  const sync = (): void => {
+    bPuff.classList.toggle('on', puffOn);
+    bL.classList.toggle('on', cheeks.pulled('L'));
+    bR.classList.toggle('on', cheeks.pulled('R'));
+    bB.classList.toggle('on', cheeks.pulled('L') && cheeks.pulled('R'));
+    bRun.classList.toggle('on', run);
+  };
+  const keys: Record<string, () => void> = {
+    KeyP: () => cheeks.puff((puffOn = !puffOn) ? 1 : 0),
+    KeyS: () => cheeks.squash(1),
+    KeyL: () => togglePull('L'),
+    KeyR: () => togglePull('R'),
+    KeyB: () => togglePull('both'),
+    Space: () => cheeks.release(),
+    KeyH: () => (shakeT = 0),
+    KeyJ: () => (run = !run),
+  };
+  window.addEventListener('keydown', (e) => {
+    const f = keys[e.code];
+    if (!f || e.repeat) return;
+    e.preventDefault();
+    f();
+    sync();
+  });
+  return {
+    update(dt: number): void {
+      t += dt;
+      let y = 0;
+      if (run) y += Math.abs(Math.sin(t * Math.PI * 2.6)) * 0.035;
+      if (shakeT >= 0) {
+        shakeT += dt;
+        // 뛰어올랐다 떨어져 착지: 0.45초 포물선 + 착지 순간 눌림
+        const T = 0.45;
+        if (shakeT < T) y += 4 * 0.12 * (shakeT / T) * (1 - shakeT / T);
+        else {
+          shakeT = -1;
+          cheeks.squash(0.9);
+        }
+      }
+      root.position.set(base.x, base.y + y, base.z);
+      root.updateMatrixWorld(true);
+      cheeks.update(dt);
+    },
+  };
 }
 
 main().catch((e) => {
