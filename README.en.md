@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="brand/strawberry-cake-engine.svg">
+    <img alt="STRAWBERRY CAKE ENGINE" src="brand/strawberry-cake-engine-light.svg" width="560">
+  </picture>
+</p>
+
 [한국어](README.md) · **English** · [日本語](README.ja.md)
 
 # strawberry-cake-engine
@@ -19,6 +26,7 @@ a rigged character controller, toon shading, a closed Shadow DOM UI, and i18n (k
 | `cinematic` | Camera rails, a camera override director (`CameraDirector`), a shot runner (`ShotRunner`), point particles |
 | `ui` | A closed Shadow DOM UI root (`uiRoot`, `adoptStyle`), screenshots (Ctrl+Alt+Shift+P), optional web fonts, a load screen, a pause and settings menu |
 | `i18n` | A string dictionary, a source-text catalog and a language select screen |
+| `intro` | A logo card intro (`Intro`). The first card is always "Produced by MONATIUM STUDIO · Powered by STRAWBERRY CAKE ENGINE"; a game adds its own cards after it |
 
 Tools: a dialogue line editor (`npm run lines`), i18n check and fill (`npm run i18n:check`, `i18n:fill`), Playwright helpers for the Shadow DOM (`scripts/uiDom.mjs`),
 a headless Blender → glb → screenshot pipeline (`npm run model`, `npm run shot`), and an example check (`npm run examplecheck`).
@@ -84,3 +92,13 @@ The code and documents in this repository were written with the help of AI (Anth
 MIT. © 2026 Monatium Studio. See [LICENSE](LICENSE).
 
 Notices for third-party code used or adapted here are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Logos
+
+The logos in `brand/` and the intro's first card artwork (`src/intro/assets/`) identify Monatium Studio and this engine. The MIT license grants no trademark rights.
+A game built on the engine should show the first intro card as it is. Please do not alter the logos or use them as marks for something else.
+
+- The Strawberry Cake Engine logo is an original design by Monatium Studio.
+- The gear mark in the Monatium Studio logo is a vector trace of the elf race icon from EPIDGames' Trickcal Revive. Trickcal, Trickcal:Revive and other derived brands are registered trademarks of EPIDGames.
+- Logo type is outlined from Krona One, Michroma and Bagel Fat One (Google Fonts, SIL Open Font License). Generator: `tools/brand/gen_brand.py`
+

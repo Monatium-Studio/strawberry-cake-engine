@@ -24,3 +24,6 @@ __pycache__/
 .DS_Store
 .vscode/
 .idea/
+
+# 파이썬 캐시
+__pycache__/

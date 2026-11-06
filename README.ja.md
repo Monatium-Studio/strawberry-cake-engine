@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="brand/strawberry-cake-engine.svg">
+    <img alt="STRAWBERRY CAKE ENGINE" src="brand/strawberry-cake-engine-light.svg" width="560">
+  </picture>
+</p>
+
 [한국어](README.md) · [English](README.en.md) · **日本語**
 
 # strawberry-cake-engine
@@ -19,6 +26,7 @@ three.js と Rapier で作った小さな Web 3D ゲームエンジンです。�
 | `cinematic` | カメラレール、演出カメラ（`CameraDirector`）、カット実行器（`ShotRunner`）、点パーティクル |
 | `ui` | クローズドな Shadow DOM の UI ルート（`uiRoot`・`adoptStyle`）、スクリーンショット（Ctrl+Alt+Shift+P）、Web フォント（任意）、ロード画面、ポーズ・設定メニュー |
 | `i18n` | 文字列辞書・原文カタログ・言語選択画面 |
+| `intro` | ロゴカードのイントロ（`Intro`）。最初のカードは常に「Produced by MONATIUM STUDIO · Powered by STRAWBERRY CAKE ENGINE」で、ゲームはその後ろに自分のカードを追加します |
 
 ツール：台詞集エディター（`npm run lines`）、多言語チェック・補完（`npm run i18n:check`、`i18n:fill`）、Shadow DOM 用の Playwright ヘルパー（`scripts/uiDom.mjs`）、
 Blender ヘッドレス → glb → スクリーンショットのパイプライン（`npm run model`、`npm run shot`）、サンプルのチェック（`npm run examplecheck`）。
@@ -84,3 +92,13 @@ setUiFonts({ sansFaces: ["'Pretendard Variable'"], faces: { ko: ['Pretendard Var
 MIT。© 2026 Monatium Studio。[LICENSE](LICENSE)
 
 使用・移植したサードパーティーコードの告知は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) にあります。
+
+## ロゴ
+
+`brand/` のロゴとイントロ最初のカードの画像（`src/intro/assets/`）は、Monatium Studio とこのエンジンを示す標章です。MIT ライセンスは商標権を付与しません。
+エンジンを使うゲームは、イントロ最初のカードをそのまま表示してください。ロゴを改変したり、別の標章として使ったりしないでください。
+
+- ストロベリーケーキエンジンのロゴ：Monatium Studio のオリジナルデザインです。
+- モナティウムスタジオのロゴの歯車マーク：EPIDGames『トリッカル・リバイブ』のエルフ種族アイコンをベクターでトレースしたものです。Trickcal、Trickcal:Revive およびその他の派生ブランドは EPIDGames の登録商標です。
+- ロゴの文字：Krona One、Michroma、Bagel Fat One（Google Fonts、SIL Open Font License）のアウトラインです。生成スクリプト：`tools/brand/gen_brand.py`
+

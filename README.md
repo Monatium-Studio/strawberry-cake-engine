@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="brand/strawberry-cake-engine.svg">
+    <img alt="STRAWBERRY CAKE ENGINE" src="brand/strawberry-cake-engine-light.svg" width="560">
+  </picture>
+</p>
+
 **한국어** · [English](README.en.md) · [日本語](README.ja.md)
 
 # strawberry-cake-engine
@@ -19,6 +26,7 @@ three.js + Rapier로 만든 작은 웹 3D 게임 엔진입니다. 고정 스텝 
 | `cinematic` | 카메라 레일, 연출 카메라(`CameraDirector`), 컷 실행기(`ShotRunner`), 점 입자 |
 | `ui` | 닫힌 섀도 루트 UI(`uiRoot`·`adoptStyle`), 스크린샷(Ctrl+Alt+Shift+P), 웹 글꼴(선택), 로딩 화면, 일시정지·설정 메뉴 |
 | `i18n` | 문자열 사전·원문 카탈로그·언어 선택 화면 |
+| `intro` | 로고 카드 인트로(`Intro`). 첫 카드는 언제나 「Produced by MONATIUM STUDIO · Powered by STRAWBERRY CAKE ENGINE」이고, 게임은 그 뒤에 자기 카드를 붙입니다 |
 
 도구: 대사집 편집기(`npm run lines`), 다국어 점검·채우기(`npm run i18n:check`, `i18n:fill`), 섀도 DOM용 Playwright 도우미(`scripts/uiDom.mjs`),
 Blender 헤드리스 → glb → 스크린샷 파이프라인(`npm run model`, `npm run shot`), 예제 점검(`npm run examplecheck`).
@@ -84,3 +92,13 @@ setUiFonts({ sansFaces: ["'Pretendard Variable'"], faces: { ko: ['Pretendard Var
 MIT. © 2026 Monatium Studio. [LICENSE](LICENSE)
 
 함께 쓰거나 옮겨 온 서드파티 코드의 고지는 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)에 있습니다.
+
+## 로고
+
+`brand/`의 로고와 인트로 첫 카드 그림(`src/intro/assets/`)은 Monatium Studio와 이 엔진을 나타내는 표장입니다. MIT 라이선스는 상표권을 주지 않습니다.
+엔진을 쓰는 게임은 인트로 첫 카드를 그대로 보여 주면 됩니다. 로고를 고치거나 다른 표장처럼 쓰지 말아 주세요.
+
+- 스트로베리 케이크 엔진 로고: Monatium Studio의 오리지널 디자인입니다.
+- 모나티엄 스튜디오 로고의 톱니 마크: EPIDGames의 「트릭컬 리바이브」 엘프 종족 아이콘을 벡터로 따라 그렸습니다. Trickcal, Trickcal:Revive 및 기타 파생 브랜드는 EPIDGames의 등록상표입니다.
+- 로고 글자: Krona One, Michroma, Bagel Fat One(Google Fonts, SIL Open Font License)의 윤곽선입니다. 생성기: `tools/brand/gen_brand.py`
+
