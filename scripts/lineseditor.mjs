@@ -288,6 +288,10 @@ function save(edits) {
 
 // ---------------------------------------------------------------- 서버
 const page = readFileSync(join(here, 'lineseditor.html'), 'utf8');
+// 화자 고르기·영어·일본어 체크박스는 게임 UI의 드롭다운·체크박스(src/ui/Dropdown.ts, Choice.ts)를 그대로 쓴다.
+// 그 모듈(TS·?inline CSS)은 이 저장소의 Vite가 미들웨어로 바꿔 준다 (HMR 없음, 페이지는 위의 HTML 그대로)
+const { createServer: createVite } = await import('vite');
+const vite = await createVite({ root: join(here, '..'), configFile: false, logLevel: 'error', appType: 'custom', server: { middlewareMode: true, hmr: false } });
 
 const server = createServer((req, res) => {
   const send = (code, body, type = 'application/json; charset=utf-8') => {
@@ -319,9 +323,10 @@ const server = createServer((req, res) => {
     });
     return;
   }
-  send(404, { error: 'not found' });
+  vite.middlewares(req, res, () => send(404, { error: 'not found' }));
 });
 
+process.on('SIGINT', () => vite.close().then(() => process.exit(0)));
 server.listen(port, '127.0.0.1', () => {
   console.log(`[lines] 대사집 편집기: http://127.0.0.1:${port}/  (${relative(process.cwd(), root) || '.'})`);
 });

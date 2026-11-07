@@ -23,7 +23,7 @@
   .bar { display: flex; gap: 10px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
   .bar input[type=search] { flex: 1; min-width: 200px; background: #0f1218; border: 1px solid var(--line); color: var(--text); padding: 7px 10px; border-radius: 6px; font: inherit; }
   .bar label { color: var(--dim); font-size: 13px; display: flex; gap: 5px; align-items: center; cursor: pointer; }
-  .bar select { background: #0f1218; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: inherit; }
+  .bar .dd { --dd-font: 14px; --dd-pad: 6px 10px; min-width: 12em; max-width: 22em; }
   .save { background: var(--gold); color: #1a1406; border: 0; border-radius: 6px; padding: 8px 16px; font: 600 14px inherit; cursor: pointer; }
   .save:disabled { background: #3a3a33; color: #777; cursor: default; }
   .reload { background: none; border: 1px solid var(--line); color: var(--dim); border-radius: 6px; padding: 7px 12px; font: inherit; cursor: pointer; }
@@ -55,8 +55,8 @@
   <main>
     <div class="bar">
       <input type="search" id="q" placeholder="찾기: 대사·영어·일본어·화자 (모든 파일)">
-      <select id="who"><option value="">모든 화자</option></select>
-      <label><input type="checkbox" id="tr" checked> 영어·일본어</label>
+      <button type="button" class="dd" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-label="화자" id="who" value="" data-dd='[{"value":"","label":"모든 화자"}]'><span class="dd-value">모든 화자</span><i class="dd-caret" aria-hidden="true"></i></button>
+      <label><button type="button" class="ck" role="checkbox" aria-checked="true" id="tr"></button> 영어·일본어</label>
       <button class="reload" id="reload" title="파일에서 다시 불러오기">새로 불러오기</button>
       <button class="save" id="save" disabled>저장 (⌘S)</button>
     </div>
@@ -64,8 +64,13 @@
     <div class="list" id="list"></div>
   </main>
 </div>
-<script>
+<script type="module">
+// 게임 UI의 드롭다운·체크박스 (Vite 미들웨어가 TS를 바꿔 준다: lineseditor.mjs)
+import { Dropdown } from '/src/ui/Dropdown.ts';
+import { Checkbox } from '/src/ui/Choice.ts';
 const $ = (s) => document.querySelector(s);
+const [whoBox] = Dropdown.upgrade(document);
+Checkbox.upgrade(document);
 let data = { files: [] };
 let cur = null;
 const edits = new Map(); // `${file}#${idx}#${key}` → { file, idx, key, old, value }
@@ -81,7 +86,7 @@ async function load(keepFile) {
   edits.clear();
   const whos = new Map();
   for (const f of data.files) for (const l of f.lines) whos.set(l.speaker, l.who);
-  $('#who').innerHTML = '<option value="">모든 화자</option>' + [...whos].sort((a, b) => a[1].localeCompare(b[1], 'ko')).map(([id, w]) => `<option value="${esc(id)}">${esc(w)} (${esc(id)})</option>`).join('');
+  whoBox.setOptions([{ value: '', label: '모든 화자' }, ...[...whos].sort((a, b) => a[1].localeCompare(b[1], 'ko')).map(([id, w]) => ({ value: id, label: `${w} (${id})` }))]);
   cur = keepFile && data.files.some((f) => f.file === keepFile) ? keepFile : data.files[0]?.file;
   const total = data.files.reduce((a, f) => a + f.lines.length, 0);
   status(`대사 ${total}줄 · 파일 ${data.files.length}개. 고친 칸은 노랗게 표시되고, 저장하면 파일에 바로 씁니다. 게임은 개발 서버 탭을 새로고침하면 반영됩니다.`);
@@ -159,7 +164,7 @@ $('#files').addEventListener('click', (e) => {
   if (!b) return;
   cur = b.dataset.f;
   $('#q').value = '';
-  $('#who').value = '';
+  whoBox.value = '';
   render();
   $('#list').scrollTop = 0;
 });
