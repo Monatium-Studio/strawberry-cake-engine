@@ -51,7 +51,6 @@
 .sm-settings { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
 .sm-row { display: grid; grid-template-columns: 7.5em 1fr 3.2em; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; }
 .sm-row input[type='range'] { width: 100%; accent-color: var(--ui-accent); }
-.sm-row input[type='checkbox'] { justify-self: start; width: 18px; height: 18px; accent-color: var(--ui-accent); }
-.sm-row select { font: inherit; color: inherit; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 6px; padding: 3px 8px; }
-.sm-row select option { color: #111; }
+.sm-row .ck { justify-self: start; }
+.sm-row .dd { width: 100%; }
 .sm-row em { font: 700 12px var(--ui-mono); font-style: normal; color: var(--ui-accent); text-align: right; }

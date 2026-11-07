@@ -1,0 +1,141 @@
+/*
+ * 드롭다운 (Dropdown.ts): 네이티브 <select> 대신 쓰는 엔진 UI 고르기 칸. 모양은 설정 메뉴(menu.css) 그대로다:
+ *   닫힌 칸  = 메뉴 단추(.sm-items button): 어두운 판, 옅은 테, hover·포커스·열림은 강조색(--ui-accent) 바탕·테
+ *   펼친 목록 = 메뉴 판(.sm-panel)처럼 왼쪽 강조색 띠, 강조한 항목은 왼쪽 막대와 강조색 그라데이션, 고른 값은 강조색 마름모
+ * 크기는 자리마다 --dd-font(글자 크기)·--dd-pad(안쪽 여백)로 정한다 (기본: 설정 줄 13px).
+ * 펼친 목록은 스크롤·overflow:hidden·backdrop-filter 상자에 잘리지 않게 오버레이(없으면 UI 상자) 바로 아래로 옮겨 fixed로 띄운다.
+ */
+.dd {
+  --dd-accent: var(--ui-accent, #f19bb0);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: var(--dd-pad, 3px 10px 3px 12px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  background: rgba(30, 22, 34, 0.6);
+  color: var(--ui-text, #f4f1ea);
+  font: 700 var(--dd-font, 13px) / 1.35 var(--ui-sans, system-ui, sans-serif);
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-shadow: 0 1px 3px #000;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.dd-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 아래 화살표 (강조색): 펼치면 뒤집는다 */
+.dd-caret {
+  flex: none;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--dd-accent);
+  opacity: 0.8;
+  transition: transform 0.16s ease-out, opacity 0.12s;
+}
+.dd:hover,
+.dd:focus-visible,
+.dd[aria-expanded='true'] {
+  background: rgba(241, 155, 176, 0.2);
+  border-color: var(--dd-accent);
+  color: #fff;
+}
+.dd:hover .dd-caret,
+.dd:focus-visible .dd-caret,
+.dd[aria-expanded='true'] .dd-caret { opacity: 1; }
+.dd[aria-expanded='true'] .dd-caret { transform: rotate(180deg); }
+.dd:disabled { cursor: default; color: rgba(244, 241, 234, 0.45); background: rgba(30, 22, 34, 0.45); border-color: rgba(255, 255, 255, 0.1); }
+.dd:disabled .dd-caret { border-top-color: rgba(244, 241, 234, 0.3); }
+
+/* 펼친 목록 */
+.dd-panel {
+  --dd-accent: var(--ui-accent, #f19bb0);
+  position: fixed;
+  z-index: 1000;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 0;
+  border-left: 3px solid var(--dd-accent);
+  background: linear-gradient(90deg, rgba(20, 16, 24, 0.98), rgba(20, 16, 24, 0.95));
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  pointer-events: auto;
+  color: var(--ui-text, #f4f1ea);
+  font: 700 var(--dd-font, 13px) / 1.35 var(--ui-sans, system-ui, sans-serif);
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 3px #000;
+  user-select: none;
+  -webkit-user-select: none;
+  animation: dd-in 0.28s ease-out;
+}
+.dd-panel[hidden] { display: none; }
+@keyframes dd-in { from { opacity: 0; transform: translateX(-10px); } }
+.dd-panel .dd-opt {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 0;
+  padding: 6px 14px 6px 15px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(244, 241, 234, 0.82);
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  text-shadow: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.12s, background 0.18s;
+}
+/* 강조한 항목의 왼쪽 막대 */
+.dd-panel .dd-opt::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 5px;
+  bottom: 5px;
+  width: 3px;
+  background: var(--dd-accent);
+  transform: scaleY(0);
+  transition: transform 0.16s ease-out;
+}
+.dd-panel .dd-opt.on {
+  color: #fff;
+  background: linear-gradient(90deg, rgba(241, 155, 176, 0.2), rgba(241, 155, 176, 0.04) 70%, transparent);
+}
+.dd-panel .dd-opt.on::before { transform: scaleY(1); }
+/* 지금 고른 값: 강조색 마름모 (설정 줄 값 글자 .sm-row em의 강조색) */
+.dd-panel .dd-opt[aria-selected='true'] { color: var(--ui-text, #f4f1ea); }
+.dd-panel .dd-opt[aria-selected='true']::after {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  background: var(--ui-accent, #f19bb0);
+  transform: rotate(45deg);
+}
+.dd-panel .dd-opt[aria-selected='true'].on { color: #fff; }
+.dd-panel .dd-opt[aria-disabled='true'] { color: rgba(244, 241, 234, 0.32); cursor: default; }
+.dd-panel .dd-opt[aria-disabled='true']::before { background: rgba(255, 255, 255, 0.25); }
+
+@media (prefers-reduced-motion: reduce) {
+  .dd-panel { animation: none; }
+  .dd, .dd-caret, .dd-panel .dd-opt, .dd-panel .dd-opt::before { transition: none; }
+}
+
+/* 일본어 글꼴 (i18n.css의 --ui-ja) */
+div:lang(ja) .dd,
+div:lang(ja) .dd-panel { font-family: var(--ui-ja, inherit); }

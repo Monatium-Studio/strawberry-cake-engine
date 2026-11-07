@@ -72,6 +72,8 @@ export * from './ui/fontStacks';
 export * from './ui/fonts';
 export * from './ui/LoadScreen';
 export * from './ui/SettingsMenu';
+export * from './ui/Dropdown';
+export * from './ui/Choice';
 
 // intro: 로고 카드 인트로 (첫 카드는 언제나 Produced by MONATIUM STUDIO · Powered by STRAWBERRY CAKE ENGINE)
 export { Intro, type IntroCard, type IntroLayer, type IntroOptions, type IntroPhase } from './intro/Intro';

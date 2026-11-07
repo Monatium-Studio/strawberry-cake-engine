@@ -3,6 +3,8 @@ import { saveSettings } from '../core/config';
 import type { Engine } from '../core/Engine';
 import { GRAPHICS_QUALITIES, type GraphicsQuality } from '../core/quality';
 import { LANG_NAMES, LANGS, getLang, setLang, t, type Lang } from '../i18n';
+import { Checkbox, checkboxHtml } from './Choice';
+import { Dropdown, dropdownHtml, dropdownOpen } from './Dropdown';
 import menuCss from './menu.css?inline';
 import { adoptStyle } from './uiRoot';
 
@@ -90,7 +92,8 @@ export class SettingsMenu {
     this.root.hidden = false;
     requestAnimationFrame(() => this.root.classList.add('on'));
     this.onKey = (e) => {
-      if (e.code === 'Escape' && this.view === 'settings') {
+      // 펼친 드롭다운의 Esc는 드롭다운만 닫는다 (Dropdown.ts가 받는다)
+      if (e.code === 'Escape' && this.view === 'settings' && !dropdownOpen()) {
         e.preventDefault();
         this.back();
       }
@@ -180,12 +183,12 @@ export class SettingsMenu {
     const pct = (v: number) => `${Math.round(v * 100)}`;
     const out: string[] = [];
     // 언어 (src/i18n): 바꾸면 메뉴는 바로 다시 그린다. 다른 UI는 onLangChange로 따라온다
-    if (has('lang')) out.push(`<label class="sm-row"><span>${esc(t('lang.setting'))}</span><select data-x="lang">${LANGS.map((l) => `<option value="${l}"${getLang() === l ? ' selected' : ''}>${LANG_NAMES[l]}</option>`).join('')}</select><em></em></label>`);
+    if (has('lang')) out.push(`<label class="sm-row"><span>${esc(t('lang.setting'))}</span>${dropdownHtml({ options: LANGS.map((l) => ({ value: l, label: LANG_NAMES[l] })), value: getLang(), attrs: { 'data-x': 'lang' } })}<em></em></label>`);
     if (has('mouseSensitivity')) out.push(range('mouseSensitivity', t('settings.mouseSensitivity'), 0.0006, 0.006, 0.0001, s.mouseSensitivity, (v) => (v / 0.0022).toFixed(2)));
-    if (has('invertY')) out.push(`<label class="sm-row"><span>${esc(t('settings.invertY'))}</span><input type="checkbox" data-k="invertY"${s.invertY ? ' checked' : ''}><em></em></label>`);
+    if (has('invertY')) out.push(`<label class="sm-row"><span>${esc(t('settings.invertY'))}</span>${checkboxHtml({ checked: s.invertY, attrs: { 'data-k': 'invertY' } })}<em></em></label>`);
     if (has('fov')) out.push(range('worldFov', t('settings.fov'), 40, 100, 1, s.worldFov, (v) => `${v}°`));
     // 그래픽 품질 (core/quality.ts): 자동이면 오른쪽에 지금 단계
-    if (has('graphics')) out.push(`<label class="sm-row"><span>${esc(t('settings.graphics'))}</span><select data-x="graphics">${GRAPHICS_QUALITIES.map((q) => `<option value="${q}"${s.graphics === q ? ' selected' : ''}>${esc(t(`graphics.${q}`))}</option>`).join('')}</select><em>${s.graphics === 'auto' ? esc(t(`graphics.${this.engine.qualityName}`)) : ''}</em></label>`);
+    if (has('graphics')) out.push(`<label class="sm-row"><span>${esc(t('settings.graphics'))}</span>${dropdownHtml({ options: GRAPHICS_QUALITIES.map((q) => ({ value: q, label: t(`graphics.${q}`) })), value: s.graphics, attrs: { 'data-x': 'graphics' } })}<em>${s.graphics === 'auto' ? esc(t(`graphics.${this.engine.qualityName}`)) : ''}</em></label>`);
     if (has('volume')) {
       out.push(range('masterVolume', t('settings.volMaster'), 0, 1, 0.05, s.masterVolume, pct));
       out.push(range('musicVolume', t('settings.volMusic'), 0, 1, 0.05, s.musicVolume, pct));
@@ -197,13 +200,16 @@ export class SettingsMenu {
 
   private bindSettings(): void {
     const s = this.engine.settings as Settings & Record<string, unknown>;
-    const lang = this.root.querySelector('select[data-x="lang"]') as HTMLSelectElement | null;
+    // 언어·그래픽 칸(Dropdown)과 상하 반전(Checkbox): el.value·el.checked와 change·input은 예전 <select>·<input>과 같다
+    Dropdown.upgrade(this.root);
+    Checkbox.upgrade(this.root);
+    const lang = this.root.querySelector('.dd[data-x="lang"]') as HTMLButtonElement | null;
     lang?.addEventListener('change', () => {
       setLang(lang.value as Lang);
       this.render();
-      (this.root.querySelector('select[data-x="lang"]') as HTMLSelectElement | null)?.focus();
+      (this.root.querySelector('.dd[data-x="lang"]') as HTMLButtonElement | null)?.focus();
     });
-    const gfx = this.root.querySelector('select[data-x="graphics"]') as HTMLSelectElement | null;
+    const gfx = this.root.querySelector('.dd[data-x="graphics"]') as HTMLButtonElement | null;
     gfx?.addEventListener('change', () => {
       s.graphics = gfx.value as GraphicsQuality;
       this.engine.applySettings();
@@ -211,14 +217,15 @@ export class SettingsMenu {
       const em = gfx.parentElement?.querySelector('em');
       if (em) em.textContent = s.graphics === 'auto' ? t(`graphics.${this.engine.qualityName}`) : '';
     });
-    this.root.querySelectorAll('input[data-k]').forEach((el) => {
+    this.root.querySelectorAll('input[data-k], .ck[data-k]').forEach((el) => {
       const inp = el as HTMLInputElement;
+      const box = inp.getAttribute('role') === 'checkbox';
       inp.addEventListener('input', () => {
         const k = inp.dataset.k!;
-        if (inp.type === 'checkbox') s[k] = inp.checked;
+        if (box) s[k] = inp.checked;
         else s[k] = Number(inp.value);
         const em = inp.parentElement?.querySelector('em');
-        if (em && inp.type !== 'checkbox') {
+        if (em && !box) {
           const v = Number(inp.value);
           em.textContent = k === 'mouseSensitivity' ? (v / 0.0022).toFixed(2) : k === 'worldFov' ? `${v}°` : `${Math.round(v * 100)}`;
         }

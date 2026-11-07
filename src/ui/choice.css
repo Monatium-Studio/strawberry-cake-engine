@@ -1,0 +1,78 @@
+/*
+ * 체크박스·라디오 (Choice.ts): 네이티브 <input type="checkbox|radio"> 대신 쓰는 엔진 UI 칸. 드롭다운(dropdown.css)과 같은 모양:
+ *   상자 = 메뉴 단추(.sm-items button)의 어두운 판·옅은 테, hover·포커스는 강조색(--ui-accent) 바탕·테
+ *   켬   = 강조색 체크 (라디오는 강조색 마름모: 드롭다운의 고른 값 표시와 같은 꼴)
+ * 크기는 --ck-size (기본 18px: 예전 설정 줄 체크박스와 같다).
+ */
+.ck,
+.rd {
+  --ck-accent: var(--ui-accent, #f19bb0);
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  width: var(--ck-size, 18px);
+  height: var(--ck-size, 18px);
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 4px;
+  background: rgba(30, 22, 34, 0.6);
+  color: inherit;
+  font: inherit;
+  vertical-align: middle;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.12s, border-color 0.12s;
+}
+.rd { border-radius: 50%; }
+.ck::after {
+  /* 체크: 아래·오른쪽 테두리를 돌린 갈고리 */
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 28%;
+  height: 52%;
+  border: solid var(--ck-accent);
+  border-width: 0 2.5px 2.5px 0;
+  transform: translate(-50%, -50%) rotate(45deg) scale(0.4);
+  opacity: 0;
+  transition: transform 0.14s ease-out, opacity 0.12s;
+}
+.rd::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 40%;
+  height: 40%;
+  background: var(--ck-accent);
+  transform: translate(-50%, -50%) rotate(45deg) scale(0.4);
+  opacity: 0;
+  transition: transform 0.14s ease-out, opacity 0.12s;
+}
+.ck[aria-checked='true'],
+.rd[aria-checked='true'] { border-color: var(--ck-accent); background: rgba(241, 155, 176, 0.14); }
+.ck[aria-checked='true']::after { transform: translate(-50%, -50%) rotate(45deg) scale(1); opacity: 1; }
+.rd[aria-checked='true']::after { transform: translate(-50%, -50%) rotate(45deg) scale(1); opacity: 1; }
+.ck:hover,
+.ck:focus-visible,
+.rd:hover,
+.rd:focus-visible {
+  border-color: var(--ck-accent);
+  background: rgba(241, 155, 176, 0.2);
+  box-shadow: 0 0 0 2px rgba(241, 155, 176, 0.28);
+}
+/* 칸을 감싼 label 글자에 마우스를 올려도 칸이 밝아진다 (label을 누르면 칸이 바뀐다) */
+label:hover > .ck:not(:disabled),
+label:hover > .rd:not(:disabled) { border-color: var(--ck-accent); background: rgba(241, 155, 176, 0.2); }
+.ck:disabled,
+.rd:disabled { cursor: default; opacity: 0.45; }
+
+/* 라디오 묶음: 가로 한 줄 (자리에서 바꿀 수 있다) */
+.rg { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.rg-item { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ck, .rd, .ck::after, .rd::after { transition: none; }
+}
